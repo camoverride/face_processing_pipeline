@@ -31,7 +31,7 @@ face_mesh = mp.solutions.face_mesh.FaceMesh(
 
 def crop_face_with_margin(image: np.ndarray,
                           bb: list,
-                          margin: int = 50) -> np.ndarray:
+                          margin: int) -> np.ndarray:
     """
     Crop the face from the image using a MTCNN-style
     bounding box and margin.
@@ -59,7 +59,12 @@ def crop_face_with_margin(image: np.ndarray,
     x2 = min(int(x + w + margin), img_w)
     y2 = min(int(y + h + margin), img_h)
 
-    return image[y1:y2, x1:x2]
+    # Compute new width and height
+    new_w = x2 - x1
+    new_h = y2 - y1
+
+    # Return the cropped image and the new bb
+    return image[y1:y2, x1:x2], [x1, y1, new_w, new_h]
 
 
 def detect_faces(image : np.ndarray,
@@ -150,7 +155,7 @@ def get_no_margin_face(image : np.ndarray,
         An image cropped to a face.
     """
     # `margin` must be set to 0.
-    no_margin_face = crop_face_with_margin(image=image,
+    no_margin_face, _ = crop_face_with_margin(image=image,
                                            bb=box,
                                            margin=0)
 
@@ -169,7 +174,7 @@ def get_no_margin_face(image : np.ndarray,
 def get_small_margin_face(image : np.ndarray,
                           box : list[int],
                           face_mesh_margin: int,
-                          debug : bool):
+                          debug : bool) -> tuple:
     """
     Crops an image to a bounding box that contains a face with
     a small margin around the box. This is done so that face_mesh
@@ -192,12 +197,17 @@ def get_small_margin_face(image : np.ndarray,
     
     Returns
     -------
-    np.ndarray
-        An image cropped to a face with a small margin.
+    tuple
+        np.ndarray
+            An image cropped to a face with a small margin.
+        list
+            The coordinates of the new bb [x, y, w, h]
+
     """
-    small_margin_face = crop_face_with_margin(image=image,
-                                                 bb=box,
-                                                 margin=face_mesh_margin)
+    # Get the face with a small margin
+    small_margin_face, new_bb = crop_face_with_margin(image=image,
+                                                      bb=box,
+                                                      margin=face_mesh_margin)
 
     if small_margin_face is None or small_margin_face.size == 0:
         return None
@@ -208,7 +218,39 @@ def get_small_margin_face(image : np.ndarray,
         cv2.waitKey(3000)
         cv2.destroyAllWindows()
 
-    return small_margin_face
+    return small_margin_face, new_bb
+
+
+def does_new_crop_overflow_image(image: np.ndarray,
+                                 bb: list) -> bool:
+    """
+    Checks if the bounding box touches or overflows
+    the edges of the image.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        The input image.
+    bb : list
+        A list of [x, y, w, h] representing the bounding box.
+
+    Returns
+    -------
+    bool
+        True if the bbox touches or overflows the image edges,
+        False otherwise.
+    """
+    img_height, img_width = image.shape[:2]
+    x, y, w, h = bb
+
+    x_end = x + w
+    y_end = y + h
+
+    # Check for touching or overflow
+    if x <= 0 or y <= 0 or x_end >= img_width or y_end >= img_height:
+        return True
+
+    return False
 
 
 def get_face_mesh(face_image : np.ndarray,

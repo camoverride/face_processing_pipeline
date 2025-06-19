@@ -6,8 +6,8 @@ from typing import List
 import numpy as np
 
 from _face_pipeline_utils import detect_faces, get_no_margin_face, \
-    get_small_margin_face, get_face_mesh, reproject_landmarks, \
-        rotate_face, pupil_crop_image, get_additional_landmarks, \
+    get_small_margin_face, does_new_crop_overflow_image, get_face_mesh, \
+        reproject_landmarks, rotate_face, pupil_crop_image, get_additional_landmarks, \
             debug_display_all_landmarks,scale_image_and_landmarks, \
                   quantify_blur, assess_head_direction
 
@@ -123,13 +123,22 @@ def face_processing_pipeline(image : np.ndarray,
 
 
         # Get a copy of this face with a small margin
-        small_margin_face = get_small_margin_face(image=image,
-                                                  box=box,
-                                                  face_mesh_margin=face_mesh_margin,
-                                                  debug=debug)
+        small_margin_face, new_bb = get_small_margin_face(image=image,
+                                                          box=box,
+                                                          face_mesh_margin=face_mesh_margin,
+                                                          debug=debug)
         
         if small_margin_face is None:
             logging.info("Could not crop face [small margin]!")
+            continue
+
+
+        # Check if the newly cropped face overflows the image
+        overflow = does_new_crop_overflow_image(image=image,
+                                                bb=new_bb)
+        
+        if overflow:
+            logging.info("Newly cropped face overflows original image. Skipping!")
             continue
         
 
