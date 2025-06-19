@@ -1,3 +1,4 @@
+import os
 import time
 
 import cv2
@@ -77,4 +78,13 @@ def camera_stream_test():
 
 
 if __name__ == "__main__":
-    static_image_test("cam.png")
+
+    # Get all the test images.
+    TEST_IMAGES_DIR = "test_images"
+    test_images = [os.path.join(TEST_IMAGES_DIR, image)\
+                   for image in os.listdir(TEST_IMAGES_DIR)]
+    
+    # Iterate through all the test images.
+    for image in test_images:
+        print(f"Testing image: {image}")
+        static_image_test(image)
