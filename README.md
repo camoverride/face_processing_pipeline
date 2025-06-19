@@ -17,7 +17,7 @@ Utilities and pipeline for processing faces for various downstream projects.
 
 ## TODO
 
-- [ ] wrong crop when face is at border of image. Should FAIL if face margin overflows.
+- [ ] wrong crop when face is at border of image. Should FAIL if face margin overflows or is too close to the edge of the image.
 - [ ] add `face_mesh_margin` empirically
 - [ ] add a variety of tests with images of different sizes, qualities, number of faces, occlusions, lighting conditions, etc.
 - [ ] turn into object so that `FACE_MESH_MIN_CONFIDENCE` from `_face_pipeline_utils.py` can be added
