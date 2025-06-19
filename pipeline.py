@@ -204,7 +204,7 @@ def face_processing_pipeline(image : np.ndarray,
         
 
         # Assess the blur using the no-margin face.
-        blur = quantify_blur(image=no_margin_face)
+        blur = quantify_blur(face_image=no_margin_face)
 
         # Assess the head direction using the scaled image landmarks.
         head_direction = assess_head_direction(face_landmarks=scaled_landmarks)        
