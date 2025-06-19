@@ -112,13 +112,15 @@ def detect_faces(image : np.ndarray,
         
         # Display debug
         if debug and boxes:
+            _image = image.copy()
 
             # Draw the bounding box with the correct coordinates
-            for box, prob in zip(boxes, probs):
-                _image = image.copy()
+            for box in boxes:
+                x, y, w, h = box
                 cv2.rectangle(_image, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
-            cv2.imshow(f"MTCNN bounding box. Prob: {prob}", _image)
+            # Display the image with all bounding boxes.
+            cv2.imshow(f"MTCNN bounding boxes", _image)
             cv2.waitKey(3000)
             cv2.destroyAllWindows()
 
@@ -663,7 +665,7 @@ def quantify_blur(face_image : np.ndarray) -> float:
     return variance
 
 
-def assess_head_direction(landmarks : List[int]) -> float:
+def assess_head_direction(face_landmarks : List[int]) -> float:
     """
     Assess whether the head is facing forward or to the side.
 
