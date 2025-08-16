@@ -2,11 +2,12 @@ import cv2
 import os
 import time
 
-from pipeline import face_processing_pipeline
+from pipeline import MarginConfig, FaceProcessor
 
 
 
-def static_image_test(image_path : str):
+def static_image_test(image_path : str,
+                      processor : FaceProcessor):
     """
     Tests the `face_processing_pipeline` function on a
     single static image.
@@ -15,85 +16,163 @@ def static_image_test(image_path : str):
     image = cv2.imread(image_path)
     print(image_path)
 
-    # Get the results.
-    res = face_processing_pipeline(image=image,
-                                   l=1,
-                                   r=1,
-                                   t=2.5,
-                                   detector="mtcnn",
-                                   desired_width=1080,
-                                   desired_height=1920,
-                                   face_mesh_margin=0.2,
-                                   debug=True)
+     # Call the pipeline.
+    processed_images_info = processor.process_image(image)
+
+    # Check that a face was detected.
+    if processed_images_info:
+
+        # Iterate through every face that as detected.
+        for processed_image_info in processed_images_info:
+        
+            # Print out debug.
+            print(f"Blur : {processed_image_info.blur}")
+            print(f"Head orientation : {processed_image_info.head_forward}")
+            print(f"Original height : {processed_image_info.original_height}")
+            print(f"Original width : {processed_image_info. original_width}")
+            print(f"Confidence : {processed_image_info.prob}")
+            print("")
+
+    # Pause after each image.
+    print("##########")
+    time.sleep(5)
     
-    if res:
-        # Show all detected faces
-        for i, face_data in enumerate(res):
-            # Show the result data (except for the image and bounding box -- too much debug!)
-            print(f"  Face {i}:")
-            print(f"    prob : {face_data['prob']}")
-            print(f"    blur : {face_data['blur']}")
-            print(f"    head_forward : {face_data['head_forward']}")
-            print(f"    original_face_width : {face_data['original_face_width']}")
-            print(f"    original_face_height : {face_data['original_face_height']}")
-            print("------")
 
 
-
-            # Display the resulting processed face.
-            cv2.imshow(f"processed face {i}", face_data["face_image"])
-            cv2.waitKey(3000)
-            cv2.destroyAllWindows()
-
-
-def camera_stream_test():
+def camera_stream_test(processor : FaceProcessor):
     """
     Tests the `face_processing_pipeline` function on a
     webcam stream.
     """
+    # Start video stream.
     cap = cv2.VideoCapture(0)
 
+    # Check if the stream is open.
     if not cap.isOpened():
         print("Cannot open camera")
         exit()
 
+    # Video processing loop.
     while True:
-        # Capture frame-by-frame
+        # Capture frame-by-frame.
         ret, frame = cap.read()
 
-        # If frame reading was not successful, break
+        # If frame reading was not successful, break.
         if not ret:
             print("Can't receive frame (stream end?). Exiting ...")
             break
 
         # Call the pipeline.
-        res = face_processing_pipeline(image=frame,
-                                       l=1,
-                                       r=1,
-                                       t=1.5,
-                                       detector="mtcnn",
-                                       desired_width=1080,
-                                       desired_height=1920,
-                                       face_mesh_margin=0.20,
-                                       debug=True)
-        
-        # TODO: print out debug.
+        processed_images_info = processor.process_image(frame)
 
-        # Pause
+        # Check that a face was detected.
+        if processed_images_info:
+
+            # Iterate through every face that as detected.
+            for processed_image_info in processed_images_info:
+            
+                # Print out debug.
+                print(f"Blur : {processed_image_info.blur}")
+                print(f"Head orientation : {processed_image_info.head_forward}")
+                print(f"Original height : {processed_image_info.original_height}")
+                print(f"Original width : {processed_image_info. original_width}")
+                print(f"Confidence : {processed_image_info.prob}")
+                print("")
+
+        # Pause after each frame.
+        print("##########")
         time.sleep(5)
 
 
+def camera_stream_crop_test(processor : FaceProcessor):
+    """
+    Tests the `face_processing_pipeline` function on a
+    webcam stream.
+    """
+    # Start video stream.
+    cap = cv2.VideoCapture(0)
+
+    # Check if the stream is open.
+    if not cap.isOpened():
+        print("Cannot open camera")
+        exit()
+
+    # Video processing loop.
+    while True:
+        # Capture frame-by-frame.
+        ret, frame = cap.read()
+
+        # If frame reading was not successful, break.
+        if not ret:
+            print("Can't receive frame (stream end?). Exiting ...")
+            break
+
+        # Call the pipeline.
+        processed_images_info = processor.process_image(frame)
+
+        # Check that a face was detected.
+        if processed_images_info:
+
+            # Iterate through every face that as detected.
+            for processed_image_info in processed_images_info:
+            
+                # Print out debug.
+                print(f"Blur : {processed_image_info.blur}")
+                print(f"Head orientation : {processed_image_info.head_forward}")
+                print(f"Original height : {processed_image_info.original_height}")
+                print(f"Original width : {processed_image_info. original_width}")
+                print(f"Confidence : {processed_image_info.prob}")
+                print("")
+
+                # Show the actual image.
+                cv2.imshow("Processed Image", processed_image_info.image)
+
+        # Pause after each frame.
+        print("##########")
+        if cv2.waitKey(1) & 0xFF == ord('q'):  # Press 'q' to quit
+            break
+
 
 if __name__ == "__main__":
+
+    # Set the margins
+    margins = MarginConfig(
+        # 20% margin for face mesh
+        face_mesh_margin=0.20,
+        # Left margin = 1.5 × distance between pupils.
+        pupil_left=1.5,
+        # Right margin = 1.5 × distance between pupils  
+        pupil_right=1.5,
+        # Top margin = 1.0 × distance between pupils
+        pupil_top=1.0)
+    
+    # Create a face processor object.
+    processor = FaceProcessor(
+        # Detector type.
+        detector_type="mtcnn",
+        # Min confidence for face detection.
+        face_mesh_conf=0.7,
+        # Margins (see above).
+        margins=margins,
+        # Output width of final image, in pixels.
+        desired_width=1080,
+        # Output widheightth of final image, in pixels.
+        desired_height=1920,
+        # Whether to show debug on each step. Testing only!
+        debug=False)
+
 
     # Get all the test images.
     TEST_IMAGES_DIR = "test_images"
     test_images = [os.path.join(TEST_IMAGES_DIR, image)\
                    for image in os.listdir(TEST_IMAGES_DIR)]
     
-    # Iterate through all the test images.
-    # for image in test_images:
-    #     static_image_test(image)
+    # # Iterate through all the test images.
+    # for image_path in test_images:
+    #     static_image_test(image_path=image_path,
+    #                       processor=processor)
 
-    # Then test the camera stream.
-    camera_stream_test()
+    # # Then test the camera stream.
+    # camera_stream_test(processor=processor)
+
+    camera_stream_crop_test(processor=processor)

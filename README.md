@@ -28,15 +28,17 @@ There are several utilities in the pipeline:
 ## TODO
 
 - merge `get_no_margin_face` and `get_small_margin_face`
+- rlu cache
+- The landmark handling could be encapsulated in a dedicated class
+- The repeated image copying for debug displays could be optimized
+- The blur assessment could be memoized if called multiple times
+- The margin overflow check happens after face mesh detection which may be wasteful
+- No explicit resource cleanup for OpenCV windows
+- The rotation step could introduce artifacts at image edges
+- The black padding in pupil cropping might not be ideal for all use cases
+- Some docstrings could be more specific about units (e.g., pixels vs normalized coordinates)
+- A few type hints could be more precise (e.g., using Optional where None is possible)
+- The debug parameter is repeated everywhere - could be part of a config object
 
-
-
-- [X] wrong crop when face is at border of image. Should FAIL if face margin overflows or is too close to the edge of the image.
-- [X] final cropping step should not distort aspect ratio of image -- instead crop from larger area of image!
-- [ ] one more cropping step to crop from image, to satisfy monitor size!
-- [ ] Fail if over-cropping (maybe!)
-- [ ] add `face_mesh_margin` empirically
-- [ ] add a variety of tests with images of different sizes, qualities, number of faces, occlusions, lighting conditions, etc.
-- [ ] turn into object so that `FACE_MESH_MIN_CONFIDENCE` from `_face_pipeline_utils.py` can be added
-- [ ] turn into a proper python package that can be imported
-- [ ] implement "assess head direction"
+- turn into a proper python package that can be imported
+- implement "assess head direction"
