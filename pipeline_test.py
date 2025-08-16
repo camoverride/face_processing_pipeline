@@ -1,7 +1,6 @@
+import cv2
 import os
 import time
-
-import cv2
 
 from pipeline import face_processing_pipeline
 
@@ -14,27 +13,37 @@ def static_image_test(image_path : str):
     """
     # Read the image.
     image = cv2.imread(image_path)
+    print(image_path)
 
     # Get the results.
     res = face_processing_pipeline(image=image,
                                    l=1,
                                    r=1,
-                                   t=2,
-                                   b=2,
+                                   t=2.5,
                                    detector="mtcnn",
-                                   output_width=1200,
-                                   output_height=1200,
-                                   face_mesh_margin=70,
+                                   desired_width=1080,
+                                   desired_height=1920,
+                                   face_mesh_margin=0.2,
                                    debug=True)
     
     if res:
-        # Show the result data.
-        print(res)
+        # Show all detected faces
+        for i, face_data in enumerate(res):
+            # Show the result data (except for the image and bounding box -- too much debug!)
+            print(f"  Face {i}:")
+            print(f"    prob : {face_data['prob']}")
+            print(f"    blur : {face_data['blur']}")
+            print(f"    head_forward : {face_data['head_forward']}")
+            print(f"    original_face_width : {face_data['original_face_width']}")
+            print(f"    original_face_height : {face_data['original_face_height']}")
+            print("------")
 
-        # Display the resulting processed face.
-        cv2.imshow("processed face", res["face_image"])
-        cv2.waitKey(3000)
-        cv2.destroyAllWindows()
+
+
+            # Display the resulting processed face.
+            cv2.imshow(f"processed face {i}", face_data["face_image"])
+            cv2.waitKey(3000)
+            cv2.destroyAllWindows()
 
 
 def camera_stream_test():
@@ -61,16 +70,12 @@ def camera_stream_test():
         res = face_processing_pipeline(image=frame,
                                        l=1,
                                        r=1,
-                                       t=2,
-                                       b=2,
+                                       t=1.5,
                                        detector="mtcnn",
-                                       output_width=1200,
-                                       output_height=1200,
-                                       face_mesh_margin=70,
+                                       desired_width=1080,
+                                       desired_height=1920,
+                                       face_mesh_margin=0.20,
                                        debug=True)
-        
-        # Print the results
-        print(res)
 
         # Pause
         time.sleep(5)
@@ -85,6 +90,8 @@ if __name__ == "__main__":
                    for image in os.listdir(TEST_IMAGES_DIR)]
     
     # Iterate through all the test images.
-    for image in test_images:
-        print(f"Testing image: {image}")
-        static_image_test(image)
+    # for image in test_images:
+    #     static_image_test(image)
+
+    # Then test the camera stream.
+    camera_stream_test()

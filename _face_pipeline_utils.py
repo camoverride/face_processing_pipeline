@@ -21,69 +21,92 @@ mtcnn_detector.onet = mtcnn_detector.onet.to(device)
 
 
 # Initialize MediaPipe FaceMesh
-face_mesh = mp.solutions.face_mesh.FaceMesh(
+face_mesh = mp.solutions.face_mesh.FaceMesh(# type: ignore
     static_image_mode=False,
+
+    # Because we are only running face_mesh in a single ROI.
     max_num_faces=1,
+
+    # Needed to get faces.
     refine_landmarks=True,
-    min_detection_confidence=FACE_MESH_MIN_CONFIDENCE,
-)
+
+    # NOTE: Should be placed in a config.
+    min_detection_confidence=FACE_MESH_MIN_CONFIDENCE)
 
 
 def crop_face_with_margin(image: np.ndarray,
                           bb: list,
-                          margin: int) -> np.ndarray:
+                          margin_frac: float) -> tuple[np.ndarray, list, int]:
     """
     Crop the face from the image using a MTCNN-style
     bounding box and margin.
 
+    TODO: what if it fails by overflowing the image?
+
     Parameters
     ----------
     image : np.ndarray
-        Original image.
+        Original image that contains one or more faces. Only the face corresponding
+        region of the `bb` (bounding box) will be cropped.
     bb : list or tuple
         Bounding box in the format [x, y, w, h] in pixels.
-    margin : int
-        Margin to add (in pixels) around the bounding box.
+    margin : float
+        Margin added around image calculated in  "units of face width",
+        e.g. if the face is 200 pixels wide and `margin_frac` is
+        0.25, then the margin on all sides is 200*0.25 = 50 pixels.
 
     Returns
     -------
     np.ndarray
         A cropped image with a margin.
     """
+    # Unpack the bounding box.
     x, y, w, h = bb
+
+    # Extract image dimensions.
     img_h, img_w = image.shape[:2]
 
-    # Compute extended bounding box with margin
-    x1 = max(int(x - margin), 0)
-    y1 = max(int(y - margin), 0)
-    x2 = min(int(x + w + margin), img_w)
-    y2 = min(int(y + h + margin), img_h)
+    # Calculate margin in pixels based on face width.
+    margin_px = int(w * margin_frac)
+
+    # Compute extended bounding box with margin.
+    x1 = max(int(x - margin_px), 0)
+    y1 = max(int(y - margin_px), 0)
+    x2 = min(int(x + w + margin_px), img_w)
+    y2 = min(int(y + h + margin_px), img_h)
 
     # Compute new width and height
     new_w = x2 - x1
     new_h = y2 - y1
 
-    # Return the cropped image and the new bb
-    return image[y1:y2, x1:x2], [x1, y1, new_w, new_h]
+    # Crop the image
+    cropped_image = image[y1:y2, x1:x2]
+
+    # New bounding box with margin added
+    new_bb = [x1, y1, new_w, new_h]
+
+    # Return the cropped image, new bb, and margin (in pixels).
+    return cropped_image, new_bb, margin_px
 
 
 def detect_faces(image : np.ndarray,
                  detector : str,
-                 debug : bool) -> Tuple[list]:
+                 debug : bool) -> Tuple[list, list] | Tuple[None, None]:
     """
     If there are faces in an image, this function
     returns bounding boxes around each face.
+    Returns None if the detector is not implemented.
 
     Parameters
     ----------
     image : np.ndarray
         An image that may or may not contain faces.
     detector : str
-        The type of detector.
-        Current options: "mtcnn"
+        The type of detector. Current options:
+            - "mtcnn"
     debug : bool
         Display debug images.
-    
+
     Returns
     -------
     Tuple[list]
@@ -91,17 +114,20 @@ def detect_faces(image : np.ndarray,
         bounding boxes for each face, in the format [x, y, w, h],
         and `probs` is the probability that each box correctly
         locates a face.
+    None
+        The detector is not implemented.
     """
     # Choose the MTCNN detector.
     if detector == "mtcnn":
 
-        # Get the bounding boxes and probabilities
-        _boxes, probs = mtcnn_detector.detect(image)
+        # Get the bounding boxes and probabilities.            
+        _boxes, probs = mtcnn_detector.detect(image)  # type: ignore
 
+        # TODO: remove this
         # Return `None` if no faces are detected
         if _boxes is None or len(_boxes) == 0:
-            return None
-        
+            return None, None
+
         # Collect converted box coordinates
         boxes = []
 
@@ -114,7 +140,7 @@ def detect_faces(image : np.ndarray,
             h = int(y2 - y1)  # height = y2 - y1
 
             boxes.append([x, y, w, h])
-        
+
         # Display debug
         if debug and boxes:
             _image = image.copy()
@@ -129,15 +155,19 @@ def detect_faces(image : np.ndarray,
             cv2.waitKey(3000)
             cv2.destroyAllWindows()
 
-    return boxes, probs
+        return boxes, probs  # type: ignore
+
+    else:
+        print("Detector not implemented!")
+        return None, None
 
 
 def get_no_margin_face(image : np.ndarray,
                        box : list[int],
                        debug : bool) -> np.ndarray:
     """
-    Crops an image to a bounding box that contains a face with no
-    margin around the box.
+    Crops an image to a bounding box that contains a face.
+    The face will be tightly cropped with no margin.
 
     Parameters
     ----------
@@ -148,21 +178,18 @@ def get_no_margin_face(image : np.ndarray,
         formatted as [x, y, w, h].
     debug : bool
         Display debug images.
-    
+
     Returns
     -------
     np.ndarray
         An image cropped to a face.
     """
-    # `margin` must be set to 0.
-    no_margin_face, _ = crop_face_with_margin(image=image,
+    # Get a face with no margin: `margin_frac` must be set to 0.
+    no_margin_face, _, _ = crop_face_with_margin(image=image,
                                            bb=box,
-                                           margin=0)
+                                           margin_frac=0)
 
-    if no_margin_face is None or no_margin_face.size == 0:
-        return None
-
-    # Display debug image
+    # Display debug image.
     if debug:
         cv2.imshow("Face cropped with no margin", no_margin_face)
         cv2.waitKey(3000)
@@ -173,14 +200,12 @@ def get_no_margin_face(image : np.ndarray,
 
 def get_small_margin_face(image : np.ndarray,
                           box : list[int],
-                          face_mesh_margin: int,
-                          debug : bool) -> tuple:
+                          face_mesh_margin: float,
+                          debug : bool) -> Tuple[np.ndarray, list, int]:
     """
     Crops an image to a bounding box that contains a face with
-    a small margin around the box. This is done so that face_mesh
-    can get the landmarks (with no margin, face_mesh fails).
-
-    TODO: calculate MARGIN as a fraction of the face size
+    a small margin around the box. This is done so that `face_mesh`
+    can get the landmarks (with no margin, `face_mesh` fails).
 
     Parameters
     ----------
@@ -189,28 +214,32 @@ def get_small_margin_face(image : np.ndarray,
     box : list[int]
         A bounding box containing a face. The box is
         formatted as [x, y, w, h].
-    face_mesh_margin : int
-        Margin added around image for face_mesh analysis
-        NOTE: should be removed and calculated empirically
+    face_mesh_margin : float
+        Margin added around image for `face_mesh` analysis.
+        This is calculated in  "units of face width", e.g. if the
+        face is 200 pixels wide and `face_mesh_margin` is 0.25, then
+        the margin on all sides is 200*0.25 = 50 pixels.
     debug : bool
         Display debug images.
-    
+
     Returns
     -------
-    tuple
+    Tuple[np.ndarray, list]
         np.ndarray
             An image cropped to a face with a small margin.
         list
-            The coordinates of the new bb [x, y, w, h]
-
+            The coordinates of the new bb `[x, y, w, h]`.
+        int
+            The face margin translated into pixels.
     """
     # Get the face with a small margin
-    small_margin_face, new_bb = crop_face_with_margin(image=image,
-                                                      bb=box,
-                                                      margin=face_mesh_margin)
+    small_margin_face, new_bb, margin = crop_face_with_margin(image=image,
+                                                              bb=box,
+                                                              margin_frac=face_mesh_margin)
 
-    if small_margin_face is None or small_margin_face.size == 0:
-        return None
+    # TODO: remove this,
+    # if small_margin_face is None or small_margin_face.size == 0:
+    #     return None, None, None
 
     # Display debug image.
     if debug:
@@ -218,7 +247,7 @@ def get_small_margin_face(image : np.ndarray,
         cv2.waitKey(3000)
         cv2.destroyAllWindows()
 
-    return small_margin_face, new_bb
+    return small_margin_face, new_bb, margin
 
 
 def does_new_crop_overflow_image(image: np.ndarray,
@@ -237,16 +266,20 @@ def does_new_crop_overflow_image(image: np.ndarray,
     Returns
     -------
     bool
-        True if the bbox touches or overflows the image edges,
+        True if the bbox touches or overflows the image edges.
         False otherwise.
     """
+    # Get the image dimensions.
     img_height, img_width = image.shape[:2]
+
+    # Unpack the bounding boxes.
     x, y, w, h = bb
 
+    # Get the edges of the margin added images.
     x_end = x + w
     y_end = y + h
 
-    # Check for touching or overflow
+    # Check for touching or overflow.
     if x <= 0 or y <= 0 or x_end >= img_width or y_end >= img_height:
         return True
 
@@ -254,36 +287,45 @@ def does_new_crop_overflow_image(image: np.ndarray,
 
 
 def get_face_mesh(face_image : np.ndarray,
-                  debug : bool) :
+                  debug : bool) -> List[mp.solutions.face_mesh.NamedTuple] | None:  # type: ignore
     """
     Gets the landmarks of a face using mediapipe's `face_mesh`
-    function. Requires a face with a margin around it.
+    function. Requires a face with a margin around it, otherwise
+    the "crop" will be too tight and `face_mesh` will fail.
 
     Parameters
     ----------
     face_image : np.ndarray
-        An image containing a face with a margin around it.
+        An image containing a face which was detected using a bounding box
+        and had a margin added around it.
     debug : bool
-        Display debug images
-    
+        Display debug images.
+
     Returns
     -------
-    object
-        TODO: what type is returned?
+    List[mp.solutions.face_mesh.NamedTuple]
+        Mediapipe normalized face landmarks.
+    None
+        Face mesh can't be applied.
     """
-    # Convert to RGB
+    # Convert to RGB.
     rgb_image = cv2.cvtColor(face_image, cv2.COLOR_BGR2RGB)
 
-    # Process with face mesh
+    # Process with face mesh.
     face_mesh_results = face_mesh.process(rgb_image)
 
+    # First check: did MediaPipe return any result object at all?
     if not face_mesh_results:
+        # This means the entire processing failed (e.g., invalid input image).
         return None
 
+    # Second check: are there actually any detected faces in the results?
     if not face_mesh_results.multi_face_landmarks:
+        # Processing worked but no faces were found.
         return None
 
     # NOTE: we are assuming that only one face appears within the bounding box.
+    # This is a generally safe assumption if the margin is not too large.
     face_mesh_landmarks = face_mesh_results.multi_face_landmarks[0]
 
     # Display debug image.
@@ -307,9 +349,9 @@ def get_face_mesh(face_image : np.ndarray,
 def reproject_landmarks(image : np.ndarray,
                         cropped_face : np.ndarray,
                         box : list[int],
-                        face_mesh_landmarks,
-                        face_mesh_margin : int,
-                        debug : bool) -> List[list[int]]:
+                        face_mesh_landmarks : List[mp.solutions.face_mesh.NamedTuple],  # type: ignore
+                        margin : int,
+                        debug : bool) -> List[Tuple[int, int]]:
     """
     Translates the landmarks from the smaller cropped image
     back onto the original large image that contained the face.
@@ -324,18 +366,19 @@ def reproject_landmarks(image : np.ndarray,
     box : list[int]
         A bounding box containing a face. The box is
         formatted as [x, y, w, h].
-    face_mesh_landmarks :
-        TODO: what type exactly?
-    face_mesh_margin : int
-        Margin added around image for face_mesh analysis
-        NOTE: should be removed and calculated empirically
+    face_mesh_landmarks : List[mp.solutions.face_mesh.NamedTuple]
+        Mediapipe normalized face landmarks.
+    margin : int
+        Margin added around image for face_mesh analysis.
+        Previously calculated as a fraction of the face width and translate to pixels.
     debug : bool
         Display debug images.
-    
+
     Returns
     -------
-    List[list[int]]
-        TODO: check type. List[tuple[int]]? Are we sure it's ints?
+    List[Tuple[int, int]]
+        List of (x,y) coordinate pairs in the original image space,
+        where each coordinate is represented as a tuple of two integers.
     """
     # Collect reprojected landmarks here
     reprojected_landmarks = []
@@ -346,11 +389,11 @@ def reproject_landmarks(image : np.ndarray,
     # Extract info from the bounding box.
     x, y, w, h = box
 
-    x1 = max(x - face_mesh_margin, 0)
-    y1 = max(y - face_mesh_margin, 0)
+    x1 = max(x - margin, 0)
+    y1 = max(y - margin, 0)
 
-    
-    for point in face_mesh_landmarks.landmark:
+
+    for point in face_mesh_landmarks.landmark:  # type: ignore
         px = int(point.x * image_w)
         py = int(point.y * image_h)
         reprojected_landmarks.append((px + x1, py + y1))
@@ -369,8 +412,8 @@ def reproject_landmarks(image : np.ndarray,
 
 
 def rotate_face(image : np.ndarray,
-                landmarks : tuple,
-                debug : bool) -> tuple:
+                landmarks : List[Tuple[int, int]],
+                debug : bool) -> Tuple[np.ndarray, List[Tuple[int, int]]]:
     """
     Rotate an image so that the eyes are positioned horizontally.
     This makes it much more straightforward for subsequent cropping.
@@ -380,19 +423,23 @@ def rotate_face(image : np.ndarray,
     Parameters
     ----------
     image : np.ndarray
-        An image that should contain a face.
-    bb : tuple
-        A bounding box containing the face we care about.
-    
+        Input image containing a face (BGR format).
+    landmarks : List[Tuple[int, int]]
+        List of facial landmark coordinates in (x,y) format.
+        Expected to include at least eye landmarks (indices 33 and 263
+        for left and right eyes respectively in MediaPipe's 468-point set).
+    debug : bool
+        Whether to display intermediate rotation results.
+
     Returns
     -------
-    tuple
-        A tuple of two items.
-        The first is a np.ndarray rotated image.
-        The second is the rotated landmarks from mediapipe.
-        TODO: what type exactly are the mediapipe landmarks?
-        TODO: type hint Tuple[type[type]]
+    Tuple[np.ndarray, List[Tuple[int, int]]]
+        np.ndarray
+            The rotated image with eyes horizontally aligned.
+        List[Tuple[int, int]]
+            The transformed landmark coordinates in the rotated image space.
     """
+    # Unpack the image dimensions.
     h, w = image.shape[:2]
 
     # Calculate rotation angle
@@ -435,13 +482,14 @@ def rotate_face(image : np.ndarray,
     return rotated_image, rotated_landmarks
 
 
-def pupil_crop_image(image : np.ndarray,
-                     landmarks : List[tuple],
-                     l : float,
-                     r : float,
-                     t : float,
-                     b : float,
-                     debug : bool) -> np.ndarray:
+def pupil_crop_image(image: np.ndarray,
+                     landmarks: List[Tuple[int, int]],
+                     l: float,
+                     r: float,
+                     t: float,
+                     desired_width: int,
+                     desired_height: int,
+                     debug: bool) -> Tuple[np.ndarray, List[Tuple[int, int]]] | Tuple[None, None]:
     """
     Crops the image based on the relative position of the eyes.
     K is the distance between pupils. Starting from the pupils,
@@ -450,114 +498,143 @@ def pupil_crop_image(image : np.ndarray,
     the left margin is 1.5 * 200 = 300 pixels, starting from the
     eyeball on the left side of the image.
 
+    Returns None is cropping is not possible.
+
+    TODO: Instead of padding with black, do smart padding (same color).
+
     Parameters
     ----------
     image : np.ndarray
-        An image containing a face that has been rotated so that the
-        eyes are on a horizontal plain.
-    landmarks : List[tuple]
-        Landmarks that are a list of (x, y) coordinates.
+        An image containing a face, rotated so eyes are horizontal.
+    landmarks : List[Tuple[int, int]]
+        List of (x, y) landmark coordinates.
     l : float
-        The left margin, calculated as a fraction of K.
+        Left margin, calculated as a fraction of K.
     r : float
-        The right margin, calculated as a fraction of K.
+        Right margin, calculated as a fraction of K.
     t : float
-        The top margin, calculated as a fraction of K.
-    b : float
-        The bottom margin, calculated as a fraction of K.
+        Top margin, calculated as a fraction of K.
+    desired_width : int
+        The width of the output image.
+    desired_height : int
+        The height of the output image.
     debug : bool
         Display debug image.
 
     Returns
     -------
-    np.ndarray
-        The cropped image.
+    Tuple[np.ndarray, List[Tuple[int, int]]]
+        np.ndarray
+            The aligned, cropped, and resized image.
+        List[Tuple[int, int]]
+            The re-projected landmarks.
+    None
+        Cropping failed.
     """
-    # Iris landmarks (468-472 for right eye, 473-477 for left eye)
+    # Check if iris landmarks are available.
+    # If not, try setting `refine_landmarks=True`.
     try:
-        left_iris_landmarks = [landmarks[468],
-                               landmarks[469],
-                               landmarks[470],
-                               landmarks[471],
-                               landmarks[472]]
-        right_iris_landmarks = [landmarks[473],
-                                landmarks[474],
-                                landmarks[475],
-                                landmarks[476],
-                                landmarks[477]]
-        
-    # If this exception gets hit too much, set refine_landmarks=True
+        left_iris = np.mean(landmarks[468:473], axis=0)
+        right_iris = np.mean(landmarks[473:478], axis=0)
+
     except IndexError:
-        raise ValueError("Iris landmarks not available.")
-    
-    # Calculate the center of the left and right iris.
-    left_iris_center = np.mean([(int(lm[0]),   # lm.x == lm[0], lm.y == lm[1]
-                                 int(lm[1])) \
-                                    for lm in left_iris_landmarks],
-                                 axis=0)
-    right_iris_center = np.mean([(int(lm[0]),
-                                  int(lm[1])) \
-                                    for lm in right_iris_landmarks],
-                                  axis=0)
-    
-    # Calculate the distance between the eyes.
-    K = right_iris_center[0] - left_iris_center[0]
-    
-    # Calculate crop coordinates
-    x1 = int(left_iris_center[0] - l * K)
-    x2 = int(right_iris_center[0] + r * K)
-    y1 = int(left_iris_center[1] - t * K)
-    y2 = int(left_iris_center[1] + b * K)
-    
-    # Create a blank image (black) of the desired crop size
-    crop_height = y2 - y1
-    crop_width = x2 - x1
-    cropped_image = np.zeros((crop_height, crop_width, 3), dtype=np.uint8)
-    
-    # Calculate the valid region of the original image to copy
-    src_x1 = max(x1, 0)
-    src_x2 = min(x2, image.shape[1])
-    src_y1 = max(y1, 0)
-    src_y2 = min(y2, image.shape[0])
-    
-    # Calculate the destination region in the blank image
-    dst_x1 = src_x1 - x1
-    dst_x2 = dst_x1 + (src_x2 - src_x1)
-    dst_y1 = src_y1 - y1
-    dst_y2 = dst_y1 + (src_y2 - src_y1)
-    
-    # Copy the valid region from the original image to the blank image
-    if src_x2 > src_x1 and src_y2 > src_y1:
-        cropped_image[dst_y1:dst_y2, dst_x1:dst_x2] = \
-            image[src_y1:src_y2, src_x1:src_x2]
+        return None, None
 
-    # Transform the landmarks to the cropped image space
-    cropped_image_landmarks = []
+    # Inter-pupil distance in pixels.
+    K = right_iris[0] - left_iris[0]
+
+    # Scale factor to make the crop match desired output width.
+    crop_width_units = l + 1 + r
+    scale = desired_width / (K * crop_width_units)
+
+    # Compute required bottom margin `b` to preserve aspect ratio.
+    crop_height_units = desired_height / (K * scale)
+    b = crop_height_units - t
+
+    # Bounding box in original image coordinates (float).
+    x1 = left_iris[0] - K * l
+    x2 = right_iris[0] + K * r
+    y1 = left_iris[1] - K * t
+    y2 = left_iris[1] + K * b
+
+    # Use floor/ceil to get integer bounding box edges.
+    x1_int = int(np.floor(x1))
+    y1_int = int(np.floor(y1))
+    x2_int = int(np.ceil(x2))
+    y2_int = int(np.ceil(y2))
+
+    # Calculate crop width/height exactly from integer edges.
+    crop_width = x2_int - x1_int
+    crop_height = y2_int - y1_int
+
+    # Calculate overflow beyond image edges
+    left_overflow = max(0, - x1_int)
+    top_overflow = max(0, - y1_int)
+    right_overflow = max(0, x2_int - image.shape[1])
+    bottom_overflow = max(0, y2_int - image.shape[0])
+
+    # Clamp crop coordinates inside image
+    x1_clamped = max(0, x1_int)
+    y1_clamped = max(0, y1_int)
+    x2_clamped = min(image.shape[1], x2_int)
+    y2_clamped = min(image.shape[0], y2_int)
+
+    # Crop valid region from original image.
+    cropped_valid = image[y1_clamped:y2_clamped, x1_clamped:x2_clamped]
+
+    # Prepare black canvas for full crop size.
+    channels = image.shape[2] if image.ndim == 3 else 1
+    canvas_shape = (crop_height, crop_width, channels) \
+        if channels > 1 else (crop_height, crop_width)
+    canvas = np.zeros(canvas_shape, dtype=image.dtype)
+
+    # Calculate paste offsets in canvas where valid crop will be placed
+    paste_x = left_overflow
+    paste_y = top_overflow
+
+    # Paste the valid crop into the canvas with black padding around
+    canvas[paste_y:paste_y + cropped_valid.shape[0],
+           paste_x:paste_x + cropped_valid.shape[1]] = cropped_valid
+
+    # Resize padded crop to desired output size
+    resized = cv2.resize(canvas,
+                         (desired_width, desired_height),
+                         interpolation=cv2.INTER_AREA)
+
+    # Adjust landmarks relative to crop + padding, then scale to output size.
+    cropped_landmarks = []
     for (x, y) in landmarks:
-        # Convert to pixel coordinates
-        x_pixel = int(x)
-        y_pixel = int(y)
-        
-        # Adjust the coordinates to the cropped image's space
-        x_cropped = int((x_pixel - x1) * crop_width / (x2 - x1)) \
-            if x1 < x_pixel < x2 else -1
-        y_cropped = int((y_pixel - y1) * crop_height / (y2 - y1)) \
-            if y1 < y_pixel < y2 else -1
-        
-        # Append the new transformed landmark
-        cropped_image_landmarks.append((x_cropped, y_cropped))
+        if x1 <= x <= x2 and y1 <= y <= y2:
+            # Position relative to crop box
+            x_rel = (x - x1)
+            y_rel = (y - y1)
 
-    # Display debug image.
+            # Add padding offsets
+            x_rel += left_overflow
+            y_rel += top_overflow
+
+            # Scale to output dimensions
+            x_adj = x_rel * desired_width / crop_width
+            y_adj = y_rel * desired_height / crop_height
+            cropped_landmarks.append((int(round(x_adj)), int(round(y_adj))))
+        else:
+            cropped_landmarks.append((-1, -1))
+
+    # Show the image for debugging.
     if debug:
-        cv2.imshow("pupil-cropped/aligned image", cropped_image)
+        dbg = resized.copy()
+        for (x, y) in cropped_landmarks:
+            if x != -1 and y != -1:
+                cv2.circle(dbg, (x, y), 2, (0, 255, 0), -1)
+        cv2.imshow("Debug: pupil-cropped", dbg)
         cv2.waitKey(3000)
         cv2.destroyAllWindows()
 
-    return cropped_image, cropped_image_landmarks
+    return resized, cropped_landmarks
 
 
 def get_additional_landmarks(image_height : int,
-                             image_width : int) -> List[List[int]]:
+                             image_width : int) -> List[Tuple[int, int]]:
     """
     Adds additional landmarks to an image. These landmarks are
     around the edges of the image. This helps with morphing so
@@ -576,7 +653,6 @@ def get_additional_landmarks(image_height : int,
         A list of lists, where each sub-list is an additional landmark.
     """
     # subdiv.insert() cannot handle max values for edges, so add a small offset.
-    # TODO: why???
     offset = 0.0001
 
     # New coordinates to add to the landmarks
@@ -600,7 +676,7 @@ def get_additional_landmarks(image_height : int,
 
 
 def debug_display_all_landmarks(pupil_cropped_face : np.ndarray,
-                                all_landmarks : list[int]):
+                                all_landmarks : List[Tuple[int, int]]):
     """
     Display the debug for `get_additional_landmarks`.
 
@@ -608,7 +684,7 @@ def debug_display_all_landmarks(pupil_cropped_face : np.ndarray,
     ----------
     pupil_cropped_face : np.ndarray
         Processed face image.
-    all_landmarks : list[int]
+    all_landmarks : List[Tuple[int, int]]
         All the landmarks.
 
     Returns
@@ -625,66 +701,12 @@ def debug_display_all_landmarks(pupil_cropped_face : np.ndarray,
     cv2.destroyAllWindows()
 
 
-def scale_image_and_landmarks(image: np.ndarray,
-                              landmarks: list[tuple[float, float]],
-                              output_width: int,
-                              output_height: int,
-                              debug : bool) \
-                                    -> tuple[np.ndarray, list[tuple[float, float]]]:
-    """
-    Scale image and landmarks to exact output dimensions,
-    allowing aspect ratio change.
-    
-    Parameters
-    ----------
-    image : np.ndarray
-        An image containing a face to be re-scaled.
-    landmarks : list[tuple]
-        List of (x,y) tuples in original image coordinates
-    output_width : int
-        Target width
-    output_height : int
-        Target height
-    debug : bool
-        Display debug image.
-    
-    Returns
-    -------
-        tuple
-            A tuple of (scaled_image, scaled_landmarks)
-    """
-    # Get original dimensions
-    orig_height, orig_width = image.shape[:2]
-    
-    # Calculate scaling factors
-    width_ratio = output_width / orig_width
-    height_ratio = output_height / orig_height
-    
-    # Resize image (will stretch if aspect ratios differ)
-    scaled_image = cv2.resize(image, (output_width, output_height))
-    
-    # Scale landmarks using the same ratios
-    scaled_landmarks = [(int(x * width_ratio), int(y * height_ratio)) for x, y in landmarks]
-    
-    # Display debug image.
-    if debug:
-        _scaled_image = scaled_image.copy()
-        for (px, py) in scaled_landmarks:
-            cv2.circle(_scaled_image, (int(px), int(py)), 2, (0, 255, 255), -1)
-
-        cv2.imshow("Scaled image and landmarks", _scaled_image)
-        cv2.waitKey(3000)
-        cv2.destroyAllWindows()
-    
-    return scaled_image, scaled_landmarks
-
-
 def quantify_blur(face_image : np.ndarray) -> float:
     """
     Quantifies how blurry a face is by using Laplacian
     variance to assign a value to the blur.
 
-    NOTE: the face image should be tightly cropped so
+    NOTE: The face image should be tightly cropped so
     that no background is included in the calculation.
 
     Parameters
@@ -707,13 +729,13 @@ def quantify_blur(face_image : np.ndarray) -> float:
     return variance
 
 
-def assess_head_direction(face_landmarks : List[int]) -> float:
+def assess_head_direction(face_landmarks : List[Tuple[int, int]]) -> float:
     """
     Assess whether the head is facing forward or to the side.
 
     Returns True is the head is facing forward, otherwise False.
 
-    NOTE: this function is NOT YET IMPLEMENTED!
+    TODO: this function is NOT YET IMPLEMENTED!
 
     Parameters
     ----------
