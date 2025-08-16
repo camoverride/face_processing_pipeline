@@ -76,6 +76,8 @@ def camera_stream_test():
                                        desired_height=1920,
                                        face_mesh_margin=0.20,
                                        debug=True)
+        
+        # TODO: print out debug.
 
         # Pause
         time.sleep(5)

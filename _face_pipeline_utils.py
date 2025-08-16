@@ -675,30 +675,42 @@ def get_additional_landmarks(image_height : int,
     return int_coords
 
 
-def debug_display_all_landmarks(pupil_cropped_face : np.ndarray,
-                                all_landmarks : List[Tuple[int, int]]):
+def combine_landmarks(pupil_cropped_face : np.ndarray,
+                      face_landmarks : List[Tuple[int, int]],
+                      additional_landmarks : List[Tuple[int, int]],
+                      debug : bool) -> List[Tuple[int, int]]:
     """
-    Display the debug for `get_additional_landmarks`.
+    Combines together all the landmarks.
 
     Parameters
     ----------
     pupil_cropped_face : np.ndarray
-        Processed face image.
-    all_landmarks : List[Tuple[int, int]]
-        All the landmarks.
+        The face image. NOTE: only used for debugging.
+    face_landmarks : List[Tuple[int, int]]
+        The landmarks as (x,y) coordinates.
+    additional_landmarks : List[Tuple[int, int]]
+        The landmarks as (x,y) coordinates.
+    debug : bool
+        Display debug images.
 
     Returns
     -------
-    None
-        Displays a debug image.
+    List[Tuple[int, int]]
+        The combined landmarks.
     """
-    _pupil_cropped_face = pupil_cropped_face.copy()
-    for (px, py) in all_landmarks:
-        cv2.circle(_pupil_cropped_face, (int(px), int(py)), 2, (0, 255, 255), -1)
+    # Combine the landmarks together.
+    all_landmarks = face_landmarks + additional_landmarks
 
-    cv2.imshow("Pupil cropped image with translated landmarks", _pupil_cropped_face)
-    cv2.waitKey(3000)
-    cv2.destroyAllWindows()
+    if debug:
+        _pupil_cropped_face = pupil_cropped_face.copy()
+        for (px, py) in all_landmarks:
+            cv2.circle(_pupil_cropped_face, (int(px), int(py)), 2, (0, 255, 255), -1)
+
+        cv2.imshow("Pupil cropped image with translated landmarks", _pupil_cropped_face)
+        cv2.waitKey(3000)
+        cv2.destroyAllWindows()
+
+    return all_landmarks
 
 
 def quantify_blur(face_image : np.ndarray) -> float:

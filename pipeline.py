@@ -7,7 +7,7 @@ from typing import List
 from _face_pipeline_utils import detect_faces, get_no_margin_face, \
     get_small_margin_face, does_new_crop_overflow_image, get_face_mesh, \
         reproject_landmarks, rotate_face, pupil_crop_image, get_additional_landmarks, \
-            debug_display_all_landmarks, quantify_blur, assess_head_direction
+            quantify_blur, assess_head_direction, combine_landmarks
 
 
 
@@ -176,15 +176,15 @@ def face_processing_pipeline(image : np.ndarray,
             logging.info("Could not pupil crop image")
             continue
 
-
         # Get the all the landmarks required for later processing functions.
         h, w = pupil_cropped_face.shape[:2]
         additional_landmarks = get_additional_landmarks(h, w)
-        _all_landmarks = pupil_cropped_landmarks + additional_landmarks
 
-        if debug:
-            debug_display_all_landmarks(pupil_cropped_face=pupil_cropped_face,
-                                        all_landmarks=_all_landmarks)
+        # NOTE: Not used. Instead, these landmarks are returned separately. Used for debugging.
+        _all_landmarks = combine_landmarks(pupil_cropped_face=pupil_cropped_face,
+                                           face_landmarks=pupil_cropped_landmarks,
+                                           additional_landmarks=additional_landmarks,
+                                           debug=debug)
 
         # Assess the blur using the no-margin face.
         blur = quantify_blur(face_image=no_margin_face)

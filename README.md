@@ -27,6 +27,10 @@ There are several utilities in the pipeline:
 
 ## TODO
 
+- merge `get_no_margin_face` and `get_small_margin_face`
+
+
+
 - [X] wrong crop when face is at border of image. Should FAIL if face margin overflows or is too close to the edge of the image.
 - [X] final cropping step should not distort aspect ratio of image -- instead crop from larger area of image!
 - [ ] one more cropping step to crop from image, to satisfy monitor size!
