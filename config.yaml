@@ -1,0 +1,31 @@
+# Operating system.
+os_name: macos
+
+# Display shape.
+display_width: 1080
+display_height: 1920
+rotation: 270
+
+# Face crop features.
+pupil_left: 1.5
+pupil_right: 1.5
+pupil_top: 3.0
+
+# Face memory parameters.
+face_memory_enabled: False # Overall on/off switch for tracking previous faces.
+face_memory: 10 # How many faces should be "remembered" before a repeat is allowed.
+tolerance: 0.4 # How likely to conclude "face seen before"
+
+# Fraction of new face entering the morph.
+new_face_fraction: 0.3
+
+# Face criteria.
+max_blur: 1000
+max_head_yaw: 1000
+max_head_pitch: 1000
+max_head_roll: 1000
+min_prob: 0.3
+
+# Intermediate face processing parameters. Probably don't need to change!
+face_mesh_margin: 0.2
+face_mesh_conf: 0.7
