@@ -15,7 +15,7 @@ def static_image_test(
     image = cv2.imread(image_path)
     print(image_path)
 
-     # Call the pipeline.
+    # Call the pipeline.
     processed_images_info = processor.process_image(image)
 
     # Check that a face was detected.
