@@ -682,3 +682,39 @@ def compute_intermediate_landmarks(
         intermediate_landmarks.append((x, y))
 
     return intermediate_landmarks
+
+
+def alpha_blend(
+    background_image : np.ndarray,
+    foreground_image : np.ndarray,
+    alpha : float) -> np.ndarray:
+    """
+    Simple alpha blending of two images.
+
+    Parameters
+    ----------
+    image_1 : np.ndarray
+        First image (background).
+    image_2 : np.ndarray
+        Second image (foreground).
+    alpha : float
+        blending factor (0.0 to 1.0)
+        0.0 = only image_1, 1.0 = only image_2
+
+    Returns
+    -------
+    np.ndarray
+        blended image
+    """
+    # Ensure images have the same dimensions
+    if background_image.shape != foreground_image.shape:
+        raise ValueError
+
+    # Perform alpha blending.
+    blended = cv2.addWeighted(
+        background_image,
+        1 - alpha,
+        foreground_image, alpha,
+        0)
+
+    return blended
