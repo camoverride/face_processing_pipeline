@@ -7,13 +7,15 @@ import yaml
 from _image_capture_utils import get_image
 from _pipeline_utils import MarginConfig, FaceProcessor, FaceCriteria, is_face_acceptable
 from _embedding_utils import embed_face, check_dataset_for_embedding
-from _morph_utils import compute_intermediate_landmarks, morph_align_face, alpha_blend
+from _morph_utils import get_delauney_triangles, compute_intermediate_landmarks, \
+    morph_align_face, alpha_blend
 
 
 
 # Set up logging,
 logging.basicConfig(
     level=logging.INFO,
+    force=True,
     format='%(levelname)s: %(message)s')
 
 # Load the config file.
@@ -60,6 +62,8 @@ face_criteria = FaceCriteria(
     # The minimum confidence that this is a face.
     min_prob=config["min_prob"])
 
+# Delauney triangulization indexes.
+delauney_triangles = None
 
 
 if __name__ == "__main__":
@@ -98,12 +102,12 @@ if __name__ == "__main__":
             # Get a picture from the webcam.
             start = time.time()
             frame = get_image(config=config)
-            logging.debug(f"Snapping photo: {time.time() - start}")
+            logging.debug(f"Snapping photo: {time.time() - start:.3f}")
 
             # Process the image, extracting faces if they exist.
             start = time.time()
             processed_images_info = processor.process_image(frame)
-            logging.debug(f"Processing image: {time.time() - start}")
+            logging.debug(f"Processing image: {time.time() - start:.3f}")
 
             # If there are faces, proceed.
             if processed_images_info:
@@ -113,6 +117,15 @@ if __name__ == "__main__":
                 # Only consider the first face.
                 # TODO: eventually expand to multiple faces.
                 face_info = processed_images_info[0]
+
+                # Save indexes to be reused.
+                if delauney_triangles is None:
+                    all_landmarks_ = face_info.landmarks + face_info.landmarks_extra
+                    delauney_triangles = get_delauney_triangles(
+                        landmark_coordinates=all_landmarks_,
+                        image_height=face_info.image.shape[0],
+                        image_width=face_info.image.shape[1])
+
 
                 # Check if the face is acceptable.
                 if is_face_acceptable(
@@ -156,8 +169,7 @@ if __name__ == "__main__":
                             landmarks_1=face_info.landmarks + face_info.landmarks_extra,
                             landmarks_2=current_composite_landmarks,
                             alpha=config["new_face_fraction"])
-                        logging.info(f"Computing intermediate landmarks: \
-                                        {time.time() - start:.3f}")
+                        logging.info(f"Computing intermediate landmarks: {time.time() - start:.3f}")
 
                         # Morph align the new face to the new landmarks.
                         start = time.time()
@@ -174,8 +186,7 @@ if __name__ == "__main__":
                             source_face=current_composite,
                             target_face_all_landmarks=new_landmarks,
                             triangulation_indexes=None)
-                        logging.info(f"Morph aligning existing composite face: \
-                                        {time.time() - start:.3f}")
+                        logging.info(f"Morph aligning existing composite face: {time.time() - start:.3f}")
 
                         if (morphed_face is not None) and (morphed_comp_face is not None):
                             # Alpha blend the two images.
@@ -195,8 +206,8 @@ if __name__ == "__main__":
                             current_composite_landmarks = new_landmarks
 
                             # Log the total processing time.
-                            logging.info(f"Total face processing time: \
-                                            {time.time() - processing_start_time}")
+                            logging.info(f"Total face processing time: {time.time() - processing_start_time:.3f}")
+                            logging.info("----------------------------------------")
 
                             # Exit if "q" is pressed.
                             if cv2.waitKey(1) & 0xFF == ord("q"):

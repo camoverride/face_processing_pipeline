@@ -17,9 +17,8 @@ os.environ["QT_LOGGING_RULES"] = "*=false"
 
 # Set up logging.
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.WARNING,
     stream=sys.stdout,
-    force=True,
     format='%(asctime)s - %(levelname)s - %(message)s')
 
 
@@ -221,7 +220,7 @@ class FaceProcessor:
                 debug=self.debug)
 
             if no_margin_face is None:
-                logging.info("Could not crop face [no margin]!")
+                logging.info("> Could not crop face [no margin]!")
                 continue
 
             # Get a copy of this face with a small margin.
@@ -232,7 +231,7 @@ class FaceProcessor:
                 debug=self.debug)
 
             if small_margin_face is None:
-                logging.info("Could not crop face [small margin]!")
+                logging.info("> Could not crop face [small margin]!")
                 continue
 
             # Check if the newly cropped face overflows the image
@@ -241,7 +240,7 @@ class FaceProcessor:
                 bb=new_bb)
 
             if overflow:
-                logging.info("Newly cropped face overflows original image. Skipping!")
+                logging.info("> Newly cropped face overflows original image. Skipping!")
                 continue
 
             # Get the face_mesh landmarks from the small_margin_face
@@ -251,7 +250,7 @@ class FaceProcessor:
                 debug=self.debug)
 
             if face_mesh_landmarks is None:
-                logging.info("No face mesh landmarks!")
+                logging.info("> No face mesh landmarks!")
                 continue
 
             # Reproject the face_mesh from the `small_margin_face` onto the entire image.
@@ -270,7 +269,7 @@ class FaceProcessor:
                 debug=self.debug)
 
             if rotated_image is None:
-                logging.info("Could not rotate image!")
+                logging.info("> Could not rotate image!")
                 continue
 
             # Use the rotated image and rotated mesh to crop to eyeballs.
@@ -285,7 +284,7 @@ class FaceProcessor:
                 debug=self.debug)
 
             if (pupil_cropped_face is None) or (pupil_cropped_landmarks is None):
-                logging.info("Could not pupil crop image")
+                logging.info("> Could not pupil crop image")
                 continue
 
             # Get the all the landmarks required for later processing functions.
