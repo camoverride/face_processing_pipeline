@@ -294,7 +294,7 @@ def applyAffineTransform(
 def morph_align_face(
     source_face : np.ndarray,
     target_face_all_landmarks : List[tuple[int, int]],
-    triangulation_indexes: List) -> Optional[np.ndarray]:
+    triangulation_indexes: Optional[List]) -> Optional[np.ndarray]:
     """
     Accepts two images of the same dimensions containing faces.
     The features of the `source_face` are morphed so that they
@@ -348,10 +348,11 @@ def morph_align_face(
     # NOTE: the image height/width is the same in all images, so it's taken
     # # from the source, even though the landmarks are from the target.
     if not triangulation_indexes:
-        triangulation_indexes = get_triangulation_indexes_for_landmarks(
-                                            image_height=source_face.shape[0],
-                                            image_width=source_face.shape[1],
-                                            landmarks=target_face_all_landmarks)
+        triangulation_indexes = \
+            get_triangulation_indexes_for_landmarks(
+                image_height=source_face.shape[0],
+                image_width=source_face.shape[1],
+                landmarks=target_face_all_landmarks)
 
     else:
         # Load the triangulation indexes.
