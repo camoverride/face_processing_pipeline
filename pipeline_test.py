@@ -1,6 +1,6 @@
 import cv2
 import os
-from pipeline import MarginConfig, FaceProcessor
+from _pipeline_utils import MarginConfig, FaceProcessor
 
 
 
