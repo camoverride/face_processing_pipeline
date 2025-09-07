@@ -733,12 +733,13 @@ def pupil_crop_image(
     # Calculate affine transformation matrix (now with 3 points)
     M = cv2.getAffineTransform(src_points, dst_points)
     
-    # Apply the transformation
-    aligned = cv2.warpAffine(image, M, (desired_width, desired_height),
-                            flags=cv2.INTER_LINEAR,
-                            borderMode=cv2.BORDER_CONSTANT,
-                            borderValue=(0, 0, 0))
-    
+    # Apply the transformation with BORDER_REPLICATE for smart padding.
+    aligned = cv2.warpAffine(
+        image, M, (desired_width, desired_height),
+        flags=cv2.INTER_LINEAR,
+        borderMode=cv2.BORDER_REPLICATE,
+        borderValue=(0, 0, 0))
+
     # Transform landmarks
     cropped_landmarks = []
     for (x, y) in landmarks:
