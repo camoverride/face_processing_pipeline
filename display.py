@@ -37,7 +37,7 @@ margins = MarginConfig(
 # Create a face processor object.
 processor = FaceProcessor(
     # Detector type.
-    detector_type="mtcnn",
+    detector_type=config["detector_type"],
     # Min confidence for face detection.
     face_mesh_conf=config["face_mesh_conf"],
     # Margins (see above).

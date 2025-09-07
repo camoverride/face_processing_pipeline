@@ -1,6 +1,9 @@
 # Operating system.
 os_name: macos
 
+# Detector type. Current options: mtcnn, mediapipe
+detector_type: mediapipe
+
 # Display shape.
 display_width: 1080
 display_height: 1920

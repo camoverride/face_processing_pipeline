@@ -95,8 +95,8 @@ def detect_faces(
     ----------
     image : np.ndarray
         An image that may or may not contain faces.
-    detector : str
-        The type of detector. Current options:
+    detector : 
+        The detector. Current options:
             - "mtcnn"
     debug : bool
         Display debug images.

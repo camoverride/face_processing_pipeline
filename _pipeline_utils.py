@@ -1,7 +1,9 @@
 from dataclasses import dataclass
+import cv2
 from facenet_pytorch import MTCNN
 import logging
 import mediapipe as mp
+from mediapipe.python.solutions import face_detection
 import numpy as np
 import os
 import sys
@@ -93,6 +95,7 @@ class FaceProcessor:
         detector_type : str
             Type of face detector. Current options:
                 - "mtcnn"
+                - "mediapipe"
         face_mesh_conf : float
             Confidence threshold for face mesh detection.
         margins : MarginConfig
@@ -137,6 +140,11 @@ class FaceProcessor:
                 if net is not None:
                     net.to(device)
             return detector
+        
+        elif detector_type == "mediapipe":
+            # Create a MediaPipe detector wrapper.
+            return MediaPipeDetector()
+    
         raise ValueError(f"Unsupported detector type: {detector_type}")
 
 
@@ -350,3 +358,140 @@ def is_face_acceptable(
 
     else:
         return False
+
+
+class MediaPipeDetector:
+    """
+    Wrapper around mediapipe.solutions.face_detection to provide an API
+    compatible with facenet_pytorch.MTCNN.detect(image) -> (boxes, probs).
+
+    - Exposes detect(image: np.ndarray) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]
+      where boxes are (N, 4) in pixel coords [x1, y1, x2, y2] and probs is (N,).
+    - Accepts OpenCV BGR images (np.ndarray).
+    - Provide close() to free resources.
+    """
+
+    def __init__(self,
+                 model_selection: int = 1,
+                 min_detection_confidence: float = 0.5,
+                 keep_all: bool = True):
+        """
+        Parameters
+        ----------
+        model_selection : int
+            0 for short-range, 1 for full-range (same naming as mediapipe).
+        min_detection_confidence : float
+            Min confidence to report a detection.
+        keep_all : bool
+            If True, return all detections. If False, return only the highest-scoring detection.
+        """
+        self.keep_all = keep_all
+        # Create mediapipe face detection instance
+        self._mp_fd = face_detection.FaceDetection(
+            model_selection=model_selection,
+            min_detection_confidence=min_detection_confidence)  # type: ignore
+
+    def detect(self, image: np.ndarray) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+        """
+        Detect faces in an image.
+
+        Parameters
+        ----------
+        image : np.ndarray
+            OpenCV BGR image of shape (H, W, 3) or grayscale (H, W).
+
+        Returns
+        -------
+        boxes : np.ndarray or None
+            Array of shape (N, 4) with boxes in pixel coords [x1, y1, x2, y2], dtype=float32.
+            None if no detections.
+        probs : np.ndarray or None
+            Array of shape (N,) with detection scores. None if no detections.
+        """
+        if image is None:
+            return None, None
+
+        # If grayscale, convert to 3-channel
+        if image.ndim == 2:
+            image_rgb = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+        else:
+            # MediaPipe expects RGB
+            image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+        h, w = image.shape[:2]
+
+        # Process image: note MediaPipe expects uint8 or normalized; passing uint8 is fine.
+        results = self._mp_fd.process(image_rgb)
+
+        if not results or not results.detections:
+            return None, None
+
+        boxes_list = []
+        scores_list = []
+
+        for detection in results.detections:
+            # score: detection.score is a list (usually a single score)
+            score = float(detection.score[0]) if detection.score else 0.0
+
+            # bounding box (relative)
+            rbbox = detection.location_data.relative_bounding_box
+            if rbbox is None:
+                continue
+
+            # Convert relative bbox to absolute pixel coordinates
+            xmin = rbbox.xmin * w
+            ymin = rbbox.ymin * h
+            width = rbbox.width * w
+            height = rbbox.height * h
+
+            # Sometimes MediaPipe returns negative xmin/ymin or width/height that go out of bounds.
+            x1 = float(xmin)
+            y1 = float(ymin)
+            x2 = float(xmin + width)
+            y2 = float(ymin + height)
+
+            # Clip to image
+            x1 = max(0.0, min(x1, w - 1.0))
+            y1 = max(0.0, min(y1, h - 1.0))
+            x2 = max(0.0, min(x2, w - 1.0))
+            y2 = max(0.0, min(y2, h - 1.0))
+
+            # If bbox is degenerate, skip
+            if (x2 - x1) <= 0 or (y2 - y1) <= 0:
+                continue
+
+            boxes_list.append([x1, y1, x2, y2])
+            scores_list.append(score)
+
+        if len(boxes_list) == 0:
+            return None, None
+
+        boxes = np.asarray(boxes_list, dtype=np.float32)
+        probs = np.asarray(scores_list, dtype=np.float32)
+
+        # If keep_all is False, return only the highest-scoring detection (like some usages of MTCNN)
+        if (not self.keep_all) and boxes.shape[0] > 1:
+            idx = int(np.argmax(probs))
+            boxes = boxes[idx:idx+1]
+            probs = probs[idx:idx+1]
+
+        return boxes, probs
+
+    def close(self):
+        """Close the mediapipe resources."""
+        if hasattr(self, "_mp_fd") and self._mp_fd is not None:
+            self._mp_fd.close()
+            self._mp_fd = None
+
+    # Provide context-manager compatibility and destructor safety.
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        self.close()
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass
