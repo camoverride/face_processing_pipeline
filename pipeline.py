@@ -6,7 +6,7 @@ import numpy as np
 import os
 import sys
 import torch
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 import _face_pipeline_utils
 
 
@@ -60,6 +60,21 @@ class FaceResult:
     original_height: int
     # The confidence that this is a face.
     prob: float
+
+
+# Data class for determining whether a face is adequate.
+@dataclass
+class FaceCriteria:
+    # The maximum bluriness allowed.
+    max_blur: float
+    # The maximum yaw (orientation) of the head (abs).
+    max_head_yaw: float
+    # The maximum pitch (orientation) of the head (abs).
+    max_head_pitch: float
+    # The maximum roll (orientation) of the head (abs).
+    max_head_roll: float
+    # The minimum confidence that this is a face.
+    min_prob: float
 
 
 class FaceProcessor:
@@ -154,7 +169,7 @@ class FaceProcessor:
 
     def process_image(
         self,
-        image : np.ndarray) -> list[FaceResult] | None:
+        image : np.ndarray) -> Optional[list[FaceResult]]:
         """
         This accepts a picture that may or may not contain faces and
         extracts and processes all the faces so that they are in a
