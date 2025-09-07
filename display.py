@@ -209,12 +209,6 @@ if __name__ == "__main__":
                             logging.info(f"Total face processing time: {time.time() - processing_start_time:.3f}")
                             logging.info("----------------------------------------")
 
-                            # Exit if "q" is pressed.
-                            if cv2.waitKey(1) & 0xFF == ord("q"):
-                                logging.info("Shutting down...")
-                                break
-
-
                     # If this is the first run and there aren't composites yet...
                     else:
                         # Set the current composite to the just detected face.
@@ -222,13 +216,19 @@ if __name__ == "__main__":
                         current_composite_landmarks = \
                             face_info.landmarks + face_info.landmarks_extra
 
+
+            # Exit if "q" is pressed.
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                logging.info("Shutting down...")
+                break
+                        
             # Sleep after each iteration of the loop to reduce CPU load.
             time.sleep(0.1)
 
         # Log all exceptions, but always keep running.
         except Exception as e:
             logging.warning("Exception logged! Continuing anyway")
-            logging.warning(e)
+            logging.exception(e)
 
         # Clean up all cv2 windows on exit.
         finally:
