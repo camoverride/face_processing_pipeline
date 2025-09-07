@@ -740,23 +740,75 @@ def quantify_blur(face_image : np.ndarray) -> float:
     return variance
 
 
-def assess_head_direction(face_landmarks : List[Tuple[int, int]]) -> bool:
+def assess_head_direction(face_landmarks: List[Tuple[int, int]]) -> dict[str, float]:
     """
-    Assess whether the head is facing forward or to the side.
+    Estimate head orientation (pitch, yaw, roll) from MediaPipe face mesh landmarks.
 
-    Returns True is the head is facing forward, otherwise False.
+    This function uses the relative positions of key facial landmarks to estimate
+    the direction the head is facing. It is a simplified heuristic approach, not
+    a full 3D pose estimation. Values are approximate.
 
-    TODO: this function is NOT YET IMPLEMENTED!
+    NOTE: input images will likely already be aligned horizontally, meaning
+    roll will almost always be close to zero.
+
+    Returns a dictionary with floats under the keys:
+        - "pitch": nodding up and down (saying "yes" motion).
+            * Negative values -> looking down
+            * Positive values -> looking up
+
+        - "yaw": shaking left and right (saying "no" motion).
+            * Negative values -> turned to the left
+            * Positive values -> turned to the right
+
+        - "roll": tilting the head sideways.
+            * Negative values -> tilt left (left ear closer to shoulder)
+            * Positive values -> tilt right
+
+    A perfectly frontal head (like a passport photo) should give values close to 0.
 
     Parameters
     ----------
-    landmarks : List[int]
-        A list containing tuples of landmarks (x, y).
-    
+    face_landmarks : List[Tuple[int, int]]
+        A list of 478 (x, y) landmark tuples from MediaPipe's face_mesh model.
+        Coordinates are in pixel space.
+
     Returns
     -------
-    float
-        A value that is 0 if the face is looking directly forward
-        and some other value if it's looking in another direction.
+    Dict[str, float]
+        Dictionary containing:
+        - "pitch": float
+        - "yaw": float
+        - "roll": float
     """
-    return True
+
+    if len(face_landmarks) < 468:
+        raise ValueError("Expected 468+ face landmarks from MediaPipe Face Mesh.")
+
+    # === Pick reference points (indices are from MediaPipe Face Mesh) ===
+    nose_tip = face_landmarks[1]       # Tip of nose
+    left_eye = face_landmarks[33]      # Outer corner of left eye
+    right_eye = face_landmarks[263]    # Outer corner of right eye
+    mouth_top = face_landmarks[13]     # Top of mouth
+    mouth_bottom = face_landmarks[14]  # Bottom of mouth
+
+    # === Yaw (left-right turn) ===
+    # Compare horizontal distance of nose from midpoint of eyes
+    mid_eye_x = (left_eye[0] + right_eye[0]) / 2
+    yaw = (nose_tip[0] - mid_eye_x)
+
+    # === Pitch (up-down nod) ===
+    # Compare vertical offset of nose from the eye line
+    eye_line_y = (left_eye[1] + right_eye[1]) / 2
+    pitch = (eye_line_y - nose_tip[1])
+
+    # === Roll (side tilt) ===
+    # Compare vertical alignment of eyes
+    roll = (right_eye[1] - left_eye[1])
+
+    # Normalize values to small float range
+    # (heuristic scaling, tweak as needed)
+    pitch /= 50.0
+    yaw /= 50.0
+    roll /= 50.0
+
+    return {"pitch": pitch, "yaw": yaw, "roll": roll}

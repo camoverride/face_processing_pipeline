@@ -48,8 +48,12 @@ class FaceResult:
     landmarks_extra: List[Tuple[int, int]]
     # The blurriness of the face.
     blur: float
-    # The off-centered-ness of the head.
-    head_forward: float
+    # The yaw (orientation) of the head.
+    head_yaw: float
+    # The pitch (orientation) of the head.
+    head_pitch: float
+    # The roll (orientation) of the head.
+    head_roll: float
     # The width of the original image.
     original_width: int
     # The height of the original image.
@@ -293,7 +297,9 @@ class FaceProcessor:
                 landmarks = pupil_cropped_landmarks,
                 landmarks_extra = additional_landmarks,
                 blur = blur,
-                head_forward = head_direction,
+                head_yaw = head_direction["yaw"],
+                head_pitch = head_direction["pitch"],
+                head_roll = head_direction["roll"],
                 original_width = no_margin_face.shape[1],
                 original_height = no_margin_face.shape[0],
                 prob = prob)
