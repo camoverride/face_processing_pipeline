@@ -478,6 +478,159 @@ def rotate_face(
     return rotated_image, rotated_landmarks
 
 
+# def pupil_crop_image(
+#     image: np.ndarray,
+#     landmarks: List[Tuple[int, int]],
+#     l: float,
+#     r: float,
+#     t: float,
+#     desired_width: int,
+#     desired_height: int,
+#     debug: bool) -> Tuple[np.ndarray, List[Tuple[int, int]]] | Tuple[None, None]:
+#     """
+#     Crops the image based on the relative position of the eyes.
+#     K is the distance between pupils. Starting from the pupils,
+#     the value K is used to calculate the margins. For instance,
+#     if K is 200 pixels, then a left margin of 1.5 will mean that
+#     the left margin is 1.5 * 200 = 300 pixels, starting from the
+#     eyeball on the left side of the image.
+
+#     Returns None is cropping is not possible.
+
+#     TODO: Instead of padding with black, do smart padding (same color).
+
+#     Parameters
+#     ----------
+#     image : np.ndarray
+#         An image containing a face, rotated so eyes are horizontal.
+#     landmarks : List[Tuple[int, int]]
+#         List of (x, y) landmark coordinates.
+#     l : float
+#         Left margin, calculated as a fraction of K.
+#     r : float
+#         Right margin, calculated as a fraction of K.
+#     t : float
+#         Top margin, calculated as a fraction of K.
+#     desired_width : int
+#         The width of the output image.
+#     desired_height : int
+#         The height of the output image.
+#     debug : bool
+#         Display debug image.
+
+#     Returns
+#     -------
+#     Tuple[np.ndarray, List[Tuple[int, int]]]
+#         np.ndarray
+#             The aligned, cropped, and resized image.
+#         List[Tuple[int, int]]
+#             The re-projected landmarks.
+#     None
+#         Cropping failed.
+#     """
+#     # Check if iris landmarks are available.
+#     # If not, try setting `refine_landmarks=True`.
+#     try:
+#         left_iris = np.mean(landmarks[468:473], axis=0)
+#         right_iris = np.mean(landmarks[473:478], axis=0)
+
+#     except IndexError:
+#         return None, None
+
+#     # Inter-pupil distance in pixels.
+#     K = right_iris[0] - left_iris[0]
+
+#     # Scale factor to make the crop match desired output width.
+#     crop_width_units = l + 1 + r
+#     scale = desired_width / (K * crop_width_units)
+
+#     # Compute required bottom margin `b` to preserve aspect ratio.
+#     crop_height_units = desired_height / (K * scale)
+#     b = crop_height_units - t
+
+#     # Bounding box in original image coordinates (float).
+#     x1 = left_iris[0] - K * l
+#     x2 = right_iris[0] + K * r
+#     y1 = left_iris[1] - K * t
+#     y2 = left_iris[1] + K * b
+
+#     # Use floor/ceil to get integer bounding box edges.
+#     x1_int = int(np.floor(x1))
+#     y1_int = int(np.floor(y1))
+#     x2_int = int(np.ceil(x2))
+#     y2_int = int(np.ceil(y2))
+
+#     # Calculate crop width/height exactly from integer edges.
+#     crop_width = x2_int - x1_int
+#     crop_height = y2_int - y1_int
+
+#     # Calculate overflow beyond image edges
+#     left_overflow = max(0, - x1_int)
+#     top_overflow = max(0, - y1_int)
+#     right_overflow = max(0, x2_int - image.shape[1])
+#     bottom_overflow = max(0, y2_int - image.shape[0])
+
+#     # Clamp crop coordinates inside image
+#     x1_clamped = max(0, x1_int)
+#     y1_clamped = max(0, y1_int)
+#     x2_clamped = min(image.shape[1], x2_int)
+#     y2_clamped = min(image.shape[0], y2_int)
+
+#     # Crop valid region from original image.
+#     cropped_valid = image[y1_clamped:y2_clamped, x1_clamped:x2_clamped]
+
+#     # Prepare black canvas for full crop size.
+#     channels = image.shape[2] if image.ndim == 3 else 1
+#     canvas_shape = (crop_height, crop_width, channels) \
+#         if channels > 1 else (crop_height, crop_width)
+#     canvas = np.zeros(canvas_shape, dtype=image.dtype)
+
+#     # Calculate paste offsets in canvas where valid crop will be placed
+#     paste_x = left_overflow
+#     paste_y = top_overflow
+
+#     # Paste the valid crop into the canvas with black padding around
+#     canvas[paste_y:paste_y + cropped_valid.shape[0],
+#            paste_x:paste_x + cropped_valid.shape[1]] = cropped_valid
+
+#     # Resize padded crop to desired output size
+#     resized = cv2.resize(canvas,
+#                          (desired_width, desired_height),
+#                          interpolation=cv2.INTER_AREA)
+
+#     # Adjust landmarks relative to crop + padding, then scale to output size.
+#     cropped_landmarks = []
+#     for (x, y) in landmarks:
+#         if x1 <= x <= x2 and y1 <= y <= y2:
+#             # Position relative to crop box
+#             x_rel = (x - x1)
+#             y_rel = (y - y1)
+
+#             # Add padding offsets
+#             x_rel += left_overflow
+#             y_rel += top_overflow
+
+#             # Scale to output dimensions
+#             x_adj = x_rel * desired_width / crop_width
+#             y_adj = y_rel * desired_height / crop_height
+#             cropped_landmarks.append((int(round(x_adj)), int(round(y_adj))))
+#         else:
+#             cropped_landmarks.append((-1, -1))
+
+#     # Show the image for debugging.
+#     if debug:
+#         dbg = resized.copy()
+#         for (x, y) in cropped_landmarks:
+#             if x != -1 and y != -1:
+#                 cv2.circle(dbg, (x, y), 2, (0, 255, 0), -1)
+#         cv2.imshow("Debug: pupil-cropped", dbg)
+#         cv2.waitKey(3000)
+#         cv2.destroyAllWindows()
+
+#     return resized, cropped_landmarks
+
+
+
 def pupil_crop_image(
     image: np.ndarray,
     landmarks: List[Tuple[int, int]],
@@ -528,106 +681,87 @@ def pupil_crop_image(
     None
         Cropping failed.
     """
-    # Check if iris landmarks are available.
-    # If not, try setting `refine_landmarks=True`.
     try:
         left_iris = np.mean(landmarks[468:473], axis=0)
         right_iris = np.mean(landmarks[473:478], axis=0)
-
+        # Use nose tip as third reference point
+        nose_tip = landmarks[1]
     except IndexError:
         return None, None
 
-    # Inter-pupil distance in pixels.
+    # Inter-pupil distance in pixels
     K = right_iris[0] - left_iris[0]
 
-    # Scale factor to make the crop match desired output width.
+    # Calculate crop dimensions
     crop_width_units = l + 1 + r
     scale = desired_width / (K * crop_width_units)
+    
+    # Calculate bottom margin to maintain aspect ratio
+    b = desired_height / (K * scale) - t
+    crop_height_units = t + b
 
-    # Compute required bottom margin `b` to preserve aspect ratio.
-    crop_height_units = desired_height / (K * scale)
-    b = crop_height_units - t
+    # Calculate where the eyes SHOULD be in the final image (fixed positions)
+    left_eye_target_x = int(l * desired_width / crop_width_units)
+    right_eye_target_x = int((l + 1) * desired_width / crop_width_units)
+    eyes_target_y = int(t * desired_height / crop_height_units)
+    
+    # Calculate where the nose should be (maintain relative position)
+    # Nose is typically below the midpoint between eyes
+    mid_eyes_x = (left_iris[0] + right_iris[0]) / 2
+    mid_eyes_y = (left_iris[1] + right_iris[1]) / 2
+    nose_offset_x = nose_tip[0] - mid_eyes_x
+    nose_offset_y = nose_tip[1] - mid_eyes_y
+    
+    # Scale the offsets for the target image
+    nose_target_x = (left_eye_target_x + right_eye_target_x) / 2 + nose_offset_x * scale
+    nose_target_y = eyes_target_y + nose_offset_y * scale
 
-    # Bounding box in original image coordinates (float).
-    x1 = left_iris[0] - K * l
-    x2 = right_iris[0] + K * r
-    y1 = left_iris[1] - K * t
-    y2 = left_iris[1] + K * b
-
-    # Use floor/ceil to get integer bounding box edges.
-    x1_int = int(np.floor(x1))
-    y1_int = int(np.floor(y1))
-    x2_int = int(np.ceil(x2))
-    y2_int = int(np.ceil(y2))
-
-    # Calculate crop width/height exactly from integer edges.
-    crop_width = x2_int - x1_int
-    crop_height = y2_int - y1_int
-
-    # Calculate overflow beyond image edges
-    left_overflow = max(0, - x1_int)
-    top_overflow = max(0, - y1_int)
-    right_overflow = max(0, x2_int - image.shape[1])
-    bottom_overflow = max(0, y2_int - image.shape[0])
-
-    # Clamp crop coordinates inside image
-    x1_clamped = max(0, x1_int)
-    y1_clamped = max(0, y1_int)
-    x2_clamped = min(image.shape[1], x2_int)
-    y2_clamped = min(image.shape[0], y2_int)
-
-    # Crop valid region from original image.
-    cropped_valid = image[y1_clamped:y2_clamped, x1_clamped:x2_clamped]
-
-    # Prepare black canvas for full crop size.
-    channels = image.shape[2] if image.ndim == 3 else 1
-    canvas_shape = (crop_height, crop_width, channels) \
-        if channels > 1 else (crop_height, crop_width)
-    canvas = np.zeros(canvas_shape, dtype=image.dtype)
-
-    # Calculate paste offsets in canvas where valid crop will be placed
-    paste_x = left_overflow
-    paste_y = top_overflow
-
-    # Paste the valid crop into the canvas with black padding around
-    canvas[paste_y:paste_y + cropped_valid.shape[0],
-           paste_x:paste_x + cropped_valid.shape[1]] = cropped_valid
-
-    # Resize padded crop to desired output size
-    resized = cv2.resize(canvas,
-                         (desired_width, desired_height),
-                         interpolation=cv2.INTER_AREA)
-
-    # Adjust landmarks relative to crop + padding, then scale to output size.
+    # Source points (3 points for affine transform: left eye, right eye, nose)
+    src_points = np.array([
+        left_iris,
+        right_iris, 
+        nose_tip
+    ], dtype=np.float32)
+    
+    # Destination points (fixed positions in output image)
+    dst_points = np.array([
+        [left_eye_target_x, eyes_target_y],
+        [right_eye_target_x, eyes_target_y],
+        [nose_target_x, nose_target_y]
+    ], dtype=np.float32)
+    
+    # Calculate affine transformation matrix (now with 3 points)
+    M = cv2.getAffineTransform(src_points, dst_points)
+    
+    # Apply the transformation
+    aligned = cv2.warpAffine(image, M, (desired_width, desired_height),
+                            flags=cv2.INTER_LINEAR,
+                            borderMode=cv2.BORDER_CONSTANT,
+                            borderValue=(0, 0, 0))
+    
+    # Transform landmarks
     cropped_landmarks = []
     for (x, y) in landmarks:
-        if x1 <= x <= x2 and y1 <= y <= y2:
-            # Position relative to crop box
-            x_rel = (x - x1)
-            y_rel = (y - y1)
-
-            # Add padding offsets
-            x_rel += left_overflow
-            y_rel += top_overflow
-
-            # Scale to output dimensions
-            x_adj = x_rel * desired_width / crop_width
-            y_adj = y_rel * desired_height / crop_height
-            cropped_landmarks.append((int(round(x_adj)), int(round(y_adj))))
-        else:
-            cropped_landmarks.append((-1, -1))
-
-    # Show the image for debugging.
+        # Apply the same transformation to landmarks
+        point = np.array([x, y, 1], dtype=np.float32)
+        transformed = M @ point
+        cropped_landmarks.append((int(transformed[0]), int(transformed[1])))
+    
+    # Debug visualization
     if debug:
-        dbg = resized.copy()
+        dbg = aligned.copy()
         for (x, y) in cropped_landmarks:
-            if x != -1 and y != -1:
+            if 0 <= x < desired_width and 0 <= y < desired_height:
                 cv2.circle(dbg, (x, y), 2, (0, 255, 0), -1)
-        cv2.imshow("Debug: pupil-cropped", dbg)
+        # Mark the target positions
+        cv2.circle(dbg, (int(left_eye_target_x), int(eyes_target_y)), 5, (0, 0, 255), -1)
+        cv2.circle(dbg, (int(right_eye_target_x), int(eyes_target_y)), 5, (0, 0, 255), -1)
+        cv2.circle(dbg, (int(nose_target_x), int(nose_target_y)), 5, (255, 0, 0), -1)
+        cv2.imshow("Debug: pupil-cropped (fixed)", dbg)
         cv2.waitKey(3000)
         cv2.destroyAllWindows()
 
-    return resized, cropped_landmarks
+    return aligned, cropped_landmarks
 
 
 def get_additional_landmarks(
