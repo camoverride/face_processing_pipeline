@@ -4,8 +4,9 @@ from pipeline import MarginConfig, FaceProcessor
 
 
 
-def static_image_test(image_path : str,
-                      processor : FaceProcessor):
+def static_image_test(
+    image_path : str,
+    processor : FaceProcessor):
     """
     Tests the `face_processing_pipeline` function on a
     single static image.
@@ -41,8 +42,13 @@ def static_image_test(image_path : str,
             if cv2.waitKey(1000) & 0xFF == ord('q'):  # Press 'q' to quit
                 break
 
+            # Save a couple of example cropped images.
+            if image_path in ["test_images/1.jpg", "test_images/2.jpg"]:
+                cv2.imwrite(f"{image_path.split('/')[-1]}", processed_image_info.image)
 
-def camera_stream_test(processor : FaceProcessor):
+
+def camera_stream_test(
+    processor : FaceProcessor):
     """
     Tests the `face_processing_pipeline` function on a
     webcam stream.
@@ -132,8 +138,9 @@ if __name__ == "__main__":
 
     # First iterate through all the test images.
     for image_path in test_images:
-        static_image_test(image_path=image_path,
-                          processor=processor)
+        static_image_test(
+            image_path=image_path,
+            processor=processor)
 
 
     # Then test the camera stream.
