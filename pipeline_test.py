@@ -1,7 +1,5 @@
 import cv2
 import os
-import time
-
 from pipeline import MarginConfig, FaceProcessor
 
 
@@ -27,16 +25,21 @@ def static_image_test(image_path : str,
         
             # Print out debug.
             print(f"Blur : {processed_image_info.blur}")
-            print(f"Head orientation : {processed_image_info.head_forward}")
+            print(f"Head yaw : {processed_image_info.head_yaw}")
+            print(f"Head pitch : {processed_image_info.head_pitch}")
+            print(f"Head roll : {processed_image_info.head_roll}")
             print(f"Original height : {processed_image_info.original_height}")
             print(f"Original width : {processed_image_info. original_width}")
             print(f"Confidence : {processed_image_info.prob}")
             print("")
 
-    # Pause after each image.
-    print("##########")
-    time.sleep(5)
-    
+            # Show the actual image.
+            cv2.imshow("Processed Image", processed_image_info.image)
+
+            # Pause after each frame.
+            print("##########")
+            if cv2.waitKey(1000) & 0xFF == ord('q'):  # Press 'q' to quit
+                break
 
 
 def camera_stream_test(processor : FaceProcessor):
@@ -73,52 +76,9 @@ def camera_stream_test(processor : FaceProcessor):
             
                 # Print out debug.
                 print(f"Blur : {processed_image_info.blur}")
-                print(f"Head orientation : {processed_image_info.head_forward}")
-                print(f"Original height : {processed_image_info.original_height}")
-                print(f"Original width : {processed_image_info. original_width}")
-                print(f"Confidence : {processed_image_info.prob}")
-                print("")
-
-        # Pause after each frame.
-        print("##########")
-        time.sleep(5)
-
-
-def camera_stream_crop_test(processor : FaceProcessor):
-    """
-    Tests the `face_processing_pipeline` function on a
-    webcam stream.
-    """
-    # Start video stream.
-    cap = cv2.VideoCapture(0)
-
-    # Check if the stream is open.
-    if not cap.isOpened():
-        print("Cannot open camera")
-        exit()
-
-    # Video processing loop.
-    while True:
-        # Capture frame-by-frame.
-        ret, frame = cap.read()
-
-        # If frame reading was not successful, break.
-        if not ret:
-            print("Can't receive frame (stream end?). Exiting ...")
-            break
-
-        # Call the pipeline.
-        processed_images_info = processor.process_image(frame)
-
-        # Check that a face was detected.
-        if processed_images_info:
-
-            # Iterate through every face that as detected.
-            for processed_image_info in processed_images_info:
-            
-                # Print out debug.
-                print(f"Blur : {processed_image_info.blur}")
-                print(f"Head orientation : {processed_image_info.head_forward}")
+                print(f"Head yaw : {processed_image_info.head_yaw}")
+                print(f"Head pitch : {processed_image_info.head_pitch}")
+                print(f"Head roll : {processed_image_info.head_roll}")
                 print(f"Original height : {processed_image_info.original_height}")
                 print(f"Original width : {processed_image_info. original_width}")
                 print(f"Confidence : {processed_image_info.prob}")
@@ -133,6 +93,7 @@ def camera_stream_crop_test(processor : FaceProcessor):
             break
 
 
+
 if __name__ == "__main__":
 
     # Set the margins
@@ -144,8 +105,9 @@ if __name__ == "__main__":
         # Right margin = 1.5 × distance between pupils  
         pupil_right=1.5,
         # Top margin = 1.0 × distance between pupils
-        pupil_top=1.0)
-    
+        pupil_top=3.0)
+
+
     # Create a face processor object.
     processor = FaceProcessor(
         # Detector type.
@@ -166,13 +128,13 @@ if __name__ == "__main__":
     TEST_IMAGES_DIR = "test_images"
     test_images = [os.path.join(TEST_IMAGES_DIR, image)\
                    for image in os.listdir(TEST_IMAGES_DIR)]
-    
-    # # Iterate through all the test images.
-    # for image_path in test_images:
-    #     static_image_test(image_path=image_path,
-    #                       processor=processor)
 
-    # # Then test the camera stream.
-    # camera_stream_test(processor=processor)
 
-    camera_stream_crop_test(processor=processor)
+    # First iterate through all the test images.
+    for image_path in test_images:
+        static_image_test(image_path=image_path,
+                          processor=processor)
+
+
+    # Then test the camera stream.
+    camera_stream_test(processor=processor)
