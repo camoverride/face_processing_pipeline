@@ -293,6 +293,7 @@ def applyAffineTransform(
 
 def morph_align_face(
     source_face : np.ndarray,
+    source_face_all_landmarks : List[tuple[int, int]],
     target_face_all_landmarks : List[tuple[int, int]],
     triangulation_indexes: Optional[List]) -> Optional[np.ndarray]:
     """
@@ -312,11 +313,12 @@ def morph_align_face(
     source_face : np.ndarray
         The face that will be morphed, having its features changed.
         Must be the same dimensions as `target_face`.
-
+    source_face_all_landmarks : List[tuple[int, int]]
+        The "foreground" landmarks which will be morphed onto the target.
+        Must be the same dimensions as `target_face_all_landmarks`.        
     target_face_all_landmarks : List[tuple[int, int]]
         The "skeleton" landmarks onto which the source face will be mutated.
-        Must be the same dimensions as `source_face`.
-
+        Must be the same dimensions as `source_face_all_landmarks`.
     triangulation_indexes : list
         The list of triangles that span the entire image, used for
         morphing. Can be pre-computed, as it is not related to a
@@ -329,20 +331,11 @@ def morph_align_face(
         The "skin" from `source_face` morphed onto the landarks
         ("skeleton") of `target_face`.
     """
-    # Get the face landmarks and additional landmarks
-    source_face_landmarks = get_face_landmarks(source_face)
-
-    source_face_additional_landmarks = \
-        get_additional_landmarks(
-            image_height = source_face.shape[0],
-            image_width = source_face.shape[1])
-
-    if (source_face_landmarks == None) or (source_face_additional_landmarks == None):
-        print("Error in Morph align face - Missing landmarks!")
-        return None
-
-    source_face_all_landmarks = \
-        source_face_landmarks + source_face_additional_landmarks
+    # These must be equal!
+    if len(source_face_all_landmarks) != len(target_face_all_landmarks):
+        print(len(source_face_all_landmarks))
+        print(len(target_face_all_landmarks))
+        raise ValueError
 
     # Get the triangulation indexes for the target face.
     # NOTE: the image height/width is the same in all images, so it's taken

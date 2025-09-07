@@ -165,28 +165,36 @@ if __name__ == "__main__":
                         # Compute the new intermediate landmarks so that they are
                         # closer to the existing composite's landmarks.
                         start = time.time()
+                        face_all_landmarks = face_info.landmarks + face_info.landmarks_extra
+
                         new_landmarks = compute_intermediate_landmarks(
-                            landmarks_1=face_info.landmarks + face_info.landmarks_extra,
+                            landmarks_1=face_all_landmarks,
                             landmarks_2=current_composite_landmarks,
                             alpha=config["new_face_fraction"])
                         logging.info(f"Computing intermediate landmarks: {time.time() - start:.3f}")
 
                         # Morph align the new face to the new landmarks.
-                        start = time.time()
-                        morphed_face = morph_align_face(
-                            source_face=face_info.image,
-                            target_face_all_landmarks=new_landmarks,
-                            triangulation_indexes=None)
-                        logging.info(f"Morph aligning new face: {time.time() - start:.3f}")
+                        try:
+                            start = time.time()
+                            morphed_face = morph_align_face(
+                                source_face=face_info.image,
+                                source_face_all_landmarks=face_all_landmarks,
+                                target_face_all_landmarks=new_landmarks,
+                                triangulation_indexes=None)
+                            logging.info(f"Morph aligning new face: {time.time() - start:.3f}")
 
-                        # Morph align the existing composite to the landmarks as well.
-                        # NOTE: this leads to better alignment, but might not be worth the cost.
-                        start = time.time()
-                        morphed_comp_face = morph_align_face(
-                            source_face=current_composite,
-                            target_face_all_landmarks=new_landmarks,
-                            triangulation_indexes=None)
-                        logging.info(f"Morph aligning existing composite face: {time.time() - start:.3f}")
+                            # Morph align the existing composite to the landmarks as well.
+                            # NOTE: this leads to better alignment, but might not be worth the cost.
+                            start = time.time()
+                            morphed_comp_face = morph_align_face(
+                                source_face=current_composite,
+                                source_face_all_landmarks=current_composite_landmarks,
+                                target_face_all_landmarks=new_landmarks,
+                                triangulation_indexes=None)
+                            logging.info(f"Morph aligning existing composite face: {time.time() - start:.3f}")
+                        except Exception as e:
+                            logging.exception(e)
+                            continue
 
                         if (morphed_face is not None) and (morphed_comp_face is not None):
                             # Alpha blend the two images.
@@ -218,18 +226,12 @@ if __name__ == "__main__":
 
 
             # Exit if "q" is pressed.
-            if cv2.waitKey(1) & 0xFF == ord('q'):
+            if cv2.waitKey(100) & 0xFF == ord('q'):
                 logging.info("Shutting down...")
                 break
-                        
-            # Sleep after each iteration of the loop to reduce CPU load.
-            time.sleep(0.1)
 
         # Log all exceptions, but always keep running.
         except Exception as e:
             logging.warning("Exception logged! Continuing anyway")
             logging.exception(e)
-
-        # Clean up all cv2 windows on exit.
-        finally:
-            cv2.destroyAllWindows()
+            time.sleep(1)
