@@ -74,8 +74,7 @@ if __name__ == "__main__":
 
     # Rotate the screen.
     # NOTE: this works for Pi only.
-    os.system(f"WAYLAND_DISPLAY=wayland-1 wlr-randr --output HDMI-A-1 \
-              --transform {config['rotation']}")
+    os.system(f"wlr-randr --output HDMI-A-1 --transform {config['rotation']}")
 
     # Hide the cursor.
     os.system("unclutter -idle 0 &")
