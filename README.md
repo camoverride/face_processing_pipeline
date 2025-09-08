@@ -62,6 +62,27 @@ Test the morphing function:
 - `python morph_test.py`
 
 
+## Run in Production
+
+Start a system service:
+
+- `mkdir -p ~/.config/systemd/user`
+- `cat display.service > ~/.config/systemd/user/display.service`
+- `systemctl --user daemon-reload`
+- `systemctl --user enable display.service`
+- `systemctl --user start display.service`
+- `sudo loginctl enable-linger $(whoami)`
+
+Show the logs:
+
+- `journalctl --user -u display.service`
+
+Clear logs:
+
+- `sudo journalctl --unit=display.service --rotate`
+- `sudo journalctl --vacuum-time=1s`
+
+
 ## Swarm
 
 - `python display.py`

@@ -1,0 +1,15 @@
+[Unit]
+Description=display swarm
+After=default.target
+
+[Service]
+Type=simple
+Restart=always
+WorkingDirectory=/home/pi/face_processing_pipeline
+ExecStart=/home/pi/face_processing_pipeline/.venv/bin/python /home/pi/face_processing_pipeline/run_display.py
+StandardOutput=journal
+StandardError=journal
+Environment="PATH=/home/pi/face_processing_pipeline/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+[Install]
+WantedBy=default.target
