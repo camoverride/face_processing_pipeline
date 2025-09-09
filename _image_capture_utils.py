@@ -32,7 +32,6 @@ def _init_camera(config: dict):
 
             # Get the max sensor resolution: (width, height)
             max_resolution = _picam2.sensor_resolution
-            # max_resolution = _picam2.camera_properties.get("PixelArraySize", (640, 480))  # type: ignore
 
             _picam2.configure(
                 _picam2.create_preview_configuration(

@@ -161,6 +161,11 @@ if __name__ == "__main__":
                     if (current_composite is not None) and \
                         (current_composite_landmarks is not None):
 
+                        # Debug face information.
+                        face_height = face_info.image.shape[0]
+                        face_width = face_info.image.shape[1]
+                        logging.info(f"Face resolution: {face_height}x{face_width}")
+
                         # Compute the new intermediate landmarks so that they are
                         # closer to the existing composite's landmarks.
                         start = time.time()
