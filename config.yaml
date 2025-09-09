@@ -7,7 +7,7 @@ detector_type: mediapipe
 # Display shape.
 display_width: 1080
 display_height: 1920
-rotation: 270
+rotation: 90
 
 # Face crop features.
 pupil_left: 1.5
