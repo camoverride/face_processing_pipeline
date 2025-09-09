@@ -28,20 +28,21 @@ def _init_camera(config: dict):
         if is_pi:
             from picamera2 import Picamera2  # type: ignore
 
+            # Get the max sensor resolution: (width, height)
+            max_resolution = _picam2.sensor_resolution  # type: ignore
+
             _picam2 = Picamera2()
             _picam2.configure(
                 _picam2.create_preview_configuration(
                     main={
                         "format": "RGB888",
-                        "size": (
-                            config["display_width"] * 2,
-                            config["display_height"] * 2,
+                        "size": (max_resolution
                         ),
                     }
                 )
             )
             _picam2.start()
-            print("Raspberry Pi detected — using PiCam.")
+            print(f"Raspberry Pi detected — using PiCam at resolution {max_resolution}.")
 
         else:
             _cap = cv2.VideoCapture(0)
