@@ -29,7 +29,7 @@ def _init_camera(config: dict):
             from picamera2 import Picamera2  # type: ignore
 
             # Get the max sensor resolution: (width, height)
-            max_resolution = _picam2.sensor_resolution  # type: ignore
+            max_resolution = _picam2.camera_properties.get("PixelArraySize", (640, 480))  # type: ignore
 
             _picam2 = Picamera2()
             _picam2.configure(
