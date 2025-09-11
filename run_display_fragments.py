@@ -220,10 +220,11 @@ if __name__ == "__main__":
                                 break
 
                         # Shift the standardized face landmarks slightly towards the new face.
-                        standardized_face_landmarks = shift_vector(
-                            input_1=standardized_face_landmarks,
-                            input_2=face_info.landmarks + face_info.landmarks_extra,
-                            alpha=0.1)
+                        if config["shift_landmarks"]:
+                            standardized_face_landmarks = shift_vector(
+                                input_1=standardized_face_landmarks,
+                                input_2=face_info.landmarks + face_info.landmarks_extra,
+                                alpha=0.1)
 
                         # Log the total processing time.
                         logging.info(

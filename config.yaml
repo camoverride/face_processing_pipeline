@@ -8,6 +8,9 @@ detector_type: mediapipe
 squares_height: 120
 squares_width: 80
 
+# Fragments: do we shift faces over time?
+shift_landmarks: False
+
 # Display shape.
 display_width: 768
 display_height: 1366
