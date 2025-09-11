@@ -32,6 +32,7 @@ max_head_yaw: 1000
 max_head_pitch: 1000
 max_head_roll: 1000
 min_prob: 0.3
+min_face_width: 200
 
 # Intermediate face processing parameters. Probably don't need to change!
 face_mesh_margin: 0.2
