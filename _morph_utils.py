@@ -135,6 +135,10 @@ def get_delauney_triangles(
         A NumPy array of shape (N, 6), where each row contains the 
         coordinates of a Delaunay triangle: [x1, y1, x2, y2, x3, y3].
     """
+    for idx, (x, y) in enumerate(landmark_coordinates):
+        if not (0 < x < image_width and 0 < y < image_height):
+            print(f"[Landmark {idx}] Out of bounds: ({x}, {y}) | Image size: {image_width}x{image_height}")
+
     # Rectangle to be used with Subdiv2D
     rect = (0, 0, image_width, image_height)
 

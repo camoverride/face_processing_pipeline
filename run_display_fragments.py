@@ -103,12 +103,6 @@ if __name__ == "__main__":
     else:
         logging.warning("The standardized face is no good!")
         raise ValueError
-    
-    print("###############")
-    print(len(standardized_image_info.landmarks))
-    print(len(standardized_image_info.landmarks_extra))
-    print("###############")
-
 
 
     # Main event loop.
