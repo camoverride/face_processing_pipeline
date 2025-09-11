@@ -4,6 +4,10 @@ os_name: macos
 # Detector type. Current options: mtcnn, mediapipe
 detector_type: mediapipe
 
+# Fragments number of squares.
+squares_height: 120
+squares_width: 80
+
 # Display shape.
 display_width: 1080
 display_height: 1920

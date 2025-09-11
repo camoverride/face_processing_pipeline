@@ -194,7 +194,7 @@ if __name__ == "__main__":
 
                         fragmented_face = fragment_image(
                             image=morphed_face,
-                            grid_size=(80, 60))
+                            grid_size=(config["squares_height"], config["squares_width"]))
                         fragmented_faces.append(fragmented_face)
 
                         logging.info(f"Fragmenting the face: {time.time() - start:.3f}")
