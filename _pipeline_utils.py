@@ -76,6 +76,8 @@ class FaceCriteria:
     max_head_roll: float
     # The minimum confidence that this is a face.
     min_prob: float
+    # The minimum face width
+    min_face_width: int
 
 
 class FaceProcessor:
@@ -353,7 +355,8 @@ def is_face_acceptable(
         and abs(face_info.head_yaw) < face_criteria.max_head_yaw \
         and abs(face_info.head_pitch) < face_criteria.max_head_pitch \
         and abs(face_info.head_roll) < face_criteria.max_head_roll \
-        and face_info.prob > face_criteria.min_prob:
+        and face_info.prob > face_criteria.min_prob \
+        and face_info.original_width > face_criteria.min_face_width:
 
         return True
 

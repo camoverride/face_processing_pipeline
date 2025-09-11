@@ -61,7 +61,9 @@ face_criteria = FaceCriteria(
     # The maximum roll (orientation) of the head (abs).
     max_head_roll=config["max_head_roll"],
     # The minimum confidence that this is a face.
-    min_prob=config["min_prob"])
+    min_prob=config["min_prob"],
+    # The minimum size of the face
+    min_face_width=config["min_face_width"])
 
 # Delauney triangulization indexes.
 delauney_triangles = None
