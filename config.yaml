@@ -10,9 +10,9 @@ display_height: 1080 #1920
 rotation: normal #90
 
 # Face crop features.
-pupil_left: 3 #1.5
-pupil_right: 3 #1.5
-pupil_top: 6 #3.0
+pupil_left: 6 #3 #1.5
+pupil_right: 6 #3 #1.5
+pupil_top: 2 #6 #3.0
 
 # Face memory parameters.
 face_memory_enabled: False # Overall on/off switch for tracking previous faces.
