@@ -106,7 +106,8 @@ if __name__ == "__main__":
     if standardized_image_info:
         standardized_image_info = standardized_image_info[0]
 
-        standardized_face_landmarks = standardized_image_info.landmarks_extra
+        standardized_face_landmarks = \
+            standardized_image_info.landmarks + standardized_image_info.landmarks_extra
     else:
         logging.warning("The standardized face is no good!")
         raise ValueError
