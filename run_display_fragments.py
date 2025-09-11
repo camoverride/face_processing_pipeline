@@ -103,6 +103,12 @@ if __name__ == "__main__":
     else:
         logging.warning("The standardized face is no good!")
         raise ValueError
+    
+    print("###############")
+    print(len(standardized_image_info.landmarks))
+    print(len(standardized_image_info.landmarks_extra))
+    print("###############")
+
 
 
     # Main event loop.
@@ -200,7 +206,7 @@ if __name__ == "__main__":
                         logging.info(f"Fragmenting the face: {time.time() - start:.3f}")
 
                         new_fragmented_frames = create_composites(
-                            fragmented_images=fragmented_faces,
+                            fragmented_images=fragmented_faces,  # type: ignore
                             num_composites=30)
 
                         for image in new_fragmented_frames:
