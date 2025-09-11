@@ -711,3 +711,32 @@ def alpha_blend(
         0)
 
     return blended
+
+
+def shift_vector(
+    input_1 : list[tuple[int, int]],
+    input_2 : list[tuple[int, int]],
+    alpha : float) -> list[tuple[int, int]]:
+    """
+    Shift input_1 towards input_2 by a factor of alpha.
+
+    Parameters
+    ----------
+    input_1 : list[tuple[int, int]]
+        List of face landmarks.
+    input_2 : list[tuple[int, int]]
+        List of face landmarks.
+    alpha : float
+        (0.0 = no change, 1.0 = fully input_2)
+
+    Returns
+    -------
+    list[tuple[int, int]]
+        input_1 shifted towards input_2
+    """
+    arr1 = np.array(input_1)
+    arr2 = np.array(input_2)
+
+    shifted = arr1 + alpha * (arr2 - arr1)
+
+    return [tuple(point) for point in shifted]

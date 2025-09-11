@@ -8,7 +8,7 @@ from _image_capture_utils import get_image
 from _pipeline_utils import MarginConfig, FaceProcessor, FaceCriteria, is_face_acceptable
 from _embedding_utils import embed_face, check_dataset_for_embedding
 from _morph_utils import get_delauney_triangles, compute_intermediate_landmarks, \
-    morph_align_face, alpha_blend
+    morph_align_face, alpha_blend, shift_vector
 from _fragments_utils import fragment_image, create_composites
 
 
@@ -94,6 +94,9 @@ if __name__ == "__main__":
     # Hold the fragmented faces in memory.
     fragmented_faces = deque(maxlen=config["face_memory"])
 
+    # # Hold the landmarks of the fragmented faces in memory.
+    # fragmented_faces_landmarks = deque(maxlen=config["face_memory"])
+
     # Hold the most recent N face embeddings in memory.
     previous_face_embeddings = deque(maxlen=config["face_memory"])
 
@@ -102,9 +105,12 @@ if __name__ == "__main__":
     standardized_image_info = processor.process_image(standardized_image)
     if standardized_image_info:
         standardized_image_info = standardized_image_info[0]
+
+        standardized_face_landmarks = standardized_image_info.landmarks_extra
     else:
         logging.warning("The standardized face is no good!")
         raise ValueError
+    
 
 
     # Main event loop.
@@ -181,8 +187,7 @@ if __name__ == "__main__":
                         morphed_face = morph_align_face(
                             source_face=face_info.image,
                             source_face_all_landmarks=face_info.landmarks + face_info.landmarks_extra,
-                            target_face_all_landmarks=standardized_image_info.landmarks + \
-                                standardized_image_info.landmarks_extra,
+                            target_face_all_landmarks=standardized_face_landmarks,
                             triangulation_indexes=None)
                         logging.info(f"Morph aligning new face: {time.time() - start:.3f}")
 
@@ -198,6 +203,8 @@ if __name__ == "__main__":
                             image=morphed_face,
                             grid_size=(config["squares_height"], config["squares_width"]))
                         fragmented_faces.append(fragmented_face)
+                        # fragmented_faces_landmarks.append(
+                        #     face_info.landmarks + face_info.landmarks_extra)
 
                         logging.info(f"Fragmenting the face: {time.time() - start:.3f}")
 
@@ -212,9 +219,15 @@ if __name__ == "__main__":
                                 logging.info("Shutting down...")
                                 break
 
+                        # Shift the standardized face landmarks slightly towards the new face.
+                        standardized_face_landmarks = shift_vector(
+                            input_1=standardized_face_landmarks,
+                            input_2=face_info.landmarks + face_info.landmarks_extra,
+                            alpha=0.1)
 
                         # Log the total processing time.
-                        logging.info(f"Total face processing time: {time.time() - processing_start_time:.3f}")
+                        logging.info(
+                            f"Total face processing time: {time.time() - processing_start_time:.3f}")
                         logging.info("----------------------------------------")
 
 
