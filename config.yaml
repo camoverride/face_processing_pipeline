@@ -5,9 +5,9 @@ os_name: macos
 detector_type: mediapipe
 
 # Display shape.
-display_width: 1080
-display_height: 1920
-rotation: 90
+display_width: 1920 #1080
+display_height: 1080 #1920
+rotation: normal #90
 
 # Face crop features.
 pupil_left: 3 #1.5
